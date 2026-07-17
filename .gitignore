@@ -16,6 +16,3 @@ htmlcov/
 .coverage
 
 .idea/
-
-# local working docs (spec, guide, project context) — not published
-docs/
