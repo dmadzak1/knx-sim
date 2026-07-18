@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -71,6 +72,35 @@ class TestRegister:
 
         assert bus.has_device(registered) is True
         assert bus.has_device(unregistered) is False
+
+
+class TestDeviceLifecycle:
+    async def test_register_starts_the_device(self, bus: Bus) -> None:
+        started = asyncio.Event()
+
+        class Tracked(Device):
+            async def start(self) -> None:
+                started.set()
+
+        # register() schedules start() as an independent background task
+        # (not through the bus's telegram queue), so bus.join() wouldn't
+        # synchronize with it -- wait on the event directly instead.
+        bus.register(Tracked(IndividualAddress(1, 1, 1), [_go("a", GA, write=True)]))
+        async with asyncio.timeout(1.0):
+            await started.wait()
+
+    async def test_bus_stop_stops_registered_devices(self) -> None:
+        stopped = []
+
+        class Tracked(Device):
+            async def stop(self) -> None:
+                stopped.append(self)
+
+        b = Bus(delay_seconds=0.0)
+        b.start()
+        b.register(Tracked(IndividualAddress(1, 1, 1), [_go("a", GA, write=True)]))
+        await b.stop()
+        assert len(stopped) == 1
 
 
 class TestWriteRouting:

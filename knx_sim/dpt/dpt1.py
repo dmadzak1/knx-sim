@@ -44,3 +44,17 @@ class DPT1009(DPT1BitBase):
     """DPT 1.009 — Open/Close (False = Open, True = Close)."""
 
     dpt_id = "1.009"
+
+
+@register
+class DPT1010(DPT1BitBase):
+    """DPT 1.010 — Start/Stop (False = Stop, True = Start)."""
+
+    dpt_id = "1.010"
+
+
+@register
+class DPT1018(DPT1BitBase):
+    """DPT 1.018 — Occupancy (False = Not Occupied, True = Occupied)."""
+
+    dpt_id = "1.018"

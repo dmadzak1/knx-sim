@@ -11,7 +11,19 @@ dependency in pyproject.toml).
 
 from __future__ import annotations
 
-from xknx.dpt.dpt_1 import DPTOpenClose, DPTSwitch, DPTUpDown, OpenClose, Step, Switch, UpDown
+from xknx.dpt.dpt_1 import (
+    DPTOccupancy,
+    DPTOpenClose,
+    DPTStart,
+    DPTSwitch,
+    DPTUpDown,
+    Occupancy,
+    OpenClose,
+    Start,
+    Step,
+    Switch,
+    UpDown,
+)
 from xknx.dpt.dpt_3 import ControlDimming, DPTControlDimming
 from xknx.dpt.dpt_5 import DPTPercentU8, DPTScaling
 from xknx.dpt.dpt_7 import DPT2Ucount
@@ -19,7 +31,7 @@ from xknx.dpt.dpt_9 import DPTTemperature
 from xknx.dpt.dpt_14 import DPTPower
 from xknx.dpt.payload import DPTArray, DPTBinary
 
-from knx_sim.dpt.dpt1 import DPT1001, DPT1008, DPT1009
+from knx_sim.dpt.dpt1 import DPT1001, DPT1008, DPT1009, DPT1010, DPT1018
 from knx_sim.dpt.dpt3 import DPT3007, DimmingControl
 from knx_sim.dpt.dpt5 import DPT5001, DPT5004
 from knx_sim.dpt.dpt7 import DPT7001
@@ -62,6 +74,18 @@ def main() -> None:
         ours = DPT1009.encode(openclose_value)
         theirs = xknx_bytes(DPTOpenClose.to_knx(openclose))
         all_ok &= compare("1.009", str(openclose_value), ours, theirs)
+
+    for start_value in (False, True):
+        start = Start.START if start_value else Start.STOP
+        ours = DPT1010.encode(start_value)
+        theirs = xknx_bytes(DPTStart.to_knx(start))
+        all_ok &= compare("1.010", str(start_value), ours, theirs)
+
+    for occupancy_value in (False, True):
+        occupancy = Occupancy.OCCUPIED if occupancy_value else Occupancy.NOT_OCCUPIED
+        ours = DPT1018.encode(occupancy_value)
+        theirs = xknx_bytes(DPTOccupancy.to_knx(occupancy))
+        all_ok &= compare("1.018", str(occupancy_value), ours, theirs)
 
     for direction in (False, True):
         for step_code in range(8):

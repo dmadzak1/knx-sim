@@ -4,9 +4,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from knx_sim.dpt.dpt1 import DPT1001, DPT1008, DPT1009, DPT1BitBase
+from knx_sim.dpt.dpt1 import DPT1001, DPT1008, DPT1009, DPT1010, DPT1018, DPT1BitBase
 
-ONE_BIT_DPTS: list[type[DPT1BitBase]] = [DPT1001, DPT1008, DPT1009]
+ONE_BIT_DPTS: list[type[DPT1BitBase]] = [DPT1001, DPT1008, DPT1009, DPT1010, DPT1018]
 
 
 @pytest.mark.parametrize("dpt", ONE_BIT_DPTS)
@@ -49,3 +49,5 @@ def test_dpt_ids() -> None:
     assert DPT1001.dpt_id == "1.001"
     assert DPT1008.dpt_id == "1.008"
     assert DPT1009.dpt_id == "1.009"
+    assert DPT1010.dpt_id == "1.010"
+    assert DPT1018.dpt_id == "1.018"

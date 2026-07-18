@@ -3,8 +3,15 @@
 Devices are constructed standalone (e.g. by config loading or tests) before
 any bus exists, so the ability to send telegrams is injected later via
 bind() rather than passed to __init__. Subclasses override handle_group_write
-and handle_group_read to react to bus events; the bus/router is what decides
-*when* to call them (see knx_sim/bus, not yet implemented).
+and handle_group_read to react to bus events; the bus decides *when* to call
+them (see knx_sim/bus/router.py).
+
+start()/stop() are the hook for self-driven, time-based behavior (M6):
+dimming ramps, blind travel, thermostat physics, cyclic transmission. The
+bus calls start() right after registration and stop() when it shuts down --
+subclasses that need a background asyncio task (see DimmerActuator for the
+pattern) launch it in start() and cancel it in stop(). Devices with no such
+behavior (SwitchActuator, WallSwitch) simply don't override either.
 """
 
 from __future__ import annotations
@@ -85,6 +92,15 @@ class Device:
         respond with the current value if the Read flag is set."""
         if group_object.flags.read:
             await self.respond(group_object)
+
+    async def start(self) -> None:
+        """Called by the bus right after registration. Override to launch
+        background tasks (ramps, physics ticks, cyclic transmission).
+        Default: no-op."""
+
+    async def stop(self) -> None:
+        """Called by the bus when it shuts down. Override to cancel
+        background tasks started in start(). Default: no-op."""
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.individual_address})"

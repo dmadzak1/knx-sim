@@ -106,6 +106,28 @@ class TestDefaultHandleGroupWrite:
         assert recorder.sent == []
 
 
+class TestLifecycleHooks:
+    async def test_default_start_and_stop_are_no_ops(self) -> None:
+        device = Device(IndividualAddress(1, 1, 1), [_switch_go()])
+        await device.start()  # must not raise
+        await device.stop()  # must not raise
+
+    async def test_subclass_can_override_start_and_stop(self) -> None:
+        events: list[str] = []
+
+        class Tracked(Device):
+            async def start(self) -> None:
+                events.append("started")
+
+            async def stop(self) -> None:
+                events.append("stopped")
+
+        device = Tracked(IndividualAddress(1, 1, 1), [_switch_go()])
+        await device.start()
+        await device.stop()
+        assert events == ["started", "stopped"]
+
+
 class TestSubclassing:
     async def test_subclass_can_override_handle_group_write(self) -> None:
         control = _switch_go("control")

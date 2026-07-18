@@ -71,8 +71,12 @@ class Bus:
         self._task: asyncio.Task[None] | None = None
 
     def register(self, device: Device) -> None:
-        """Register a device: binds its send capability and indexes its
-        group objects for routing (F-BUS-1)."""
+        """Register a device: binds its send capability, indexes its group
+        objects for routing (F-BUS-1), and schedules device.start() (M6) --
+        register() itself stays synchronous (many existing call sites don't
+        await it), so start() is scheduled as a background task rather than
+        awaited directly; devices with no self-driven behavior don't
+        override start() at all, so this is a no-op for them."""
         if device.individual_address in self._devices:
             raise ValueError(
                 f"individual address {device.individual_address} already registered"
@@ -83,6 +87,7 @@ class Bus:
             self._subscribers.setdefault(group_object.group_address, []).append(
                 (device, group_object)
             )
+        asyncio.create_task(device.start())
 
     def has_device(self, individual_address: IndividualAddress) -> bool:
         """Return True if individual_address belongs to a locally registered
@@ -118,7 +123,10 @@ class Bus:
         self._task = asyncio.create_task(self._run())
 
     async def stop(self) -> None:
-        """Cancel the background loop."""
+        """Stop every registered device's background tasks, then cancel the
+        bus's own processing loop."""
+        for device in self._devices.values():
+            await device.stop()
         if self._task is None:
             return
         self._task.cancel()
