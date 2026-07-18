@@ -46,11 +46,31 @@ class Device:
         await self._send(telegram)
 
     async def respond(self, group_object: GroupObject) -> None:
-        """Send a GroupValueResponse carrying group_object's current value."""
+        """Send a GroupValueResponse carrying group_object's current value.
+
+        This is specifically the answer to a GroupValueRead -- see
+        handle_group_read.
+        """
         telegram = Telegram(
             source=self.individual_address,
             destination=group_object.group_address,
             service=Service.GROUP_RESPONSE,
+            payload=group_object.to_payload(),
+        )
+        await self.send(telegram)
+
+    async def transmit(self, group_object: GroupObject) -> None:
+        """Spontaneously send group_object's current value via GroupValueWrite.
+
+        This is the Transmit (T) flag's behavior: a device announcing its
+        own value change, as opposed to answering a Read. Callers are
+        expected to check group_object.flags.transmit themselves, matching
+        how handle_group_read checks flags.read before calling respond().
+        """
+        telegram = Telegram(
+            source=self.individual_address,
+            destination=group_object.group_address,
+            service=Service.GROUP_WRITE,
             payload=group_object.to_payload(),
         )
         await self.send(telegram)
