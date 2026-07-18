@@ -1,5 +1,6 @@
-"""FastAPI backend for the dashboard (F-WEB-1, F-WEB-4): REST endpoints for
-device state, the telegram log, and manual telegram injection.
+"""FastAPI backend for the dashboard (F-WEB-1, F-WEB-2, F-WEB-4): REST
+endpoints for device state / the telegram log / manual injection, plus a
+WebSocket stream of live telegrams.
 
 create_app() takes an already-built Simulator (see knx_sim/config/loader.py)
 rather than constructing one itself -- the web layer is just another
@@ -9,10 +10,13 @@ simulator lifecycle (that's the CLI's job, M7 round C).
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 
+from knx_sim.bus.router import TelegramLogEntry
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
 from knx_sim.cemi.frame import Service, Telegram
 from knx_sim.config.loader import Simulator
@@ -26,6 +30,12 @@ from knx_sim.web.schemas import (
     InjectResponse,
     TelegramResponse,
 )
+
+# Bounded so a slow/stuck WebSocket client can never grow memory without
+# limit; on_telegram() below drops rather than blocks when full, since
+# Bus._process() awaits every monitor callback sequentially before
+# delivering to devices -- a stuck send must never stall bus processing.
+WS_QUEUE_MAXSIZE = 1000
 
 # The individual address attributed to telegrams injected via the web UI
 # (F-WEB-4) when the request doesn't specify its own source -- distinct
@@ -61,6 +71,17 @@ def _coerce_value_for_encode(dpt_id: str, value: Any) -> Any:
     if dpt_id == "3.007" and isinstance(value, dict):
         return DimmingControl(**value)
     return value
+
+
+def _telegram_response(entry: TelegramLogEntry) -> TelegramResponse:
+    return TelegramResponse(
+        timestamp=entry.timestamp,
+        source=str(entry.telegram.source),
+        destination=str(entry.telegram.destination),
+        service=_SERVICE_TO_API[entry.telegram.service],
+        dpt_id=entry.dpt_id,
+        value=_serialize_value(entry.decoded_value),
+    )
 
 
 def create_app(simulator: Simulator) -> FastAPI:
@@ -128,17 +149,7 @@ def create_app(simulator: Simulator) -> FastAPI:
             and (since is None or entry.timestamp >= since)
         ]
         entries = entries[-limit:]
-        return [
-            TelegramResponse(
-                timestamp=entry.timestamp,
-                source=str(entry.telegram.source),
-                destination=str(entry.telegram.destination),
-                service=_SERVICE_TO_API[entry.telegram.service],
-                dpt_id=entry.dpt_id,
-                value=_serialize_value(entry.decoded_value),
-            )
-            for entry in entries
-        ]
+        return [_telegram_response(entry) for entry in entries]
 
     @app.post("/api/inject")
     async def inject_telegram(request: InjectRequest) -> InjectResponse:
@@ -177,5 +188,58 @@ def create_app(simulator: Simulator) -> FastAPI:
         )
         await bus.inject(telegram)
         return InjectResponse()
+
+    @app.websocket("/ws")
+    async def telegram_stream(websocket: WebSocket) -> None:
+        await websocket.accept()
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=WS_QUEUE_MAXSIZE)
+
+        async def on_telegram(telegram: Telegram) -> None:
+            # Bus._process() appends to its log before awaiting any monitor
+            # callback and never yields control in between (see
+            # knx_sim/bus/router.py), so telegram_log[-1] is guaranteed to
+            # be *this* telegram's entry for the entire duration of this
+            # callback -- no need to re-decode the payload ourselves.
+            entry = bus.telegram_log[-1]
+            try:
+                queue.put_nowait(_telegram_response(entry).model_dump(mode="json"))
+            except asyncio.QueueFull:
+                pass  # client is falling behind; drop rather than block the bus
+
+        bus.subscribe(on_telegram)
+
+        async def sender() -> None:
+            while True:
+                data = await queue.get()
+                await websocket.send_json({"type": "telegram", "data": data})
+
+        async def receiver() -> None:
+            # This stream is server->client only; the client never sends
+            # anything meaningful. This loop exists purely to detect
+            # disconnection -- Starlette raises WebSocketDisconnect from
+            # receive() when the client goes away, which a send-only loop
+            # would otherwise never notice, leaving the connection (and
+            # this handler's task) alive forever and deadlocking graceful
+            # shutdown.
+            while True:
+                await websocket.receive_text()
+
+        send_task = asyncio.create_task(sender())
+        receive_task = asyncio.create_task(receiver())
+        try:
+            done, pending = await asyncio.wait(
+                [send_task, receive_task], return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in pending:
+                task.cancel()
+            for task in pending:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+            for task in done:
+                exc = task.exception()
+                if exc is not None and not isinstance(exc, WebSocketDisconnect):
+                    raise exc
+        finally:
+            bus.unsubscribe(on_telegram)
 
     return app

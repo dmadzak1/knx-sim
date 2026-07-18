@@ -24,6 +24,7 @@ dev = [
     "mypy",
     "types-PyYAML",
     "httpx",
+    "websockets",
 ]
 
 [tool.setuptools.packages.find]
