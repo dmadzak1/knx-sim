@@ -43,11 +43,19 @@ class TestDeviceConfig:
             DeviceConfig(type="switch", individual_address="nope")
 
     def test_extra_fields_are_kept(self) -> None:
-        config = DeviceConfig(
-            type="switch",
-            individual_address="1.1.1",
-            control_ga="1/1/1",
-            status_ga="1/1/2",
+        # Extra (device-specific) fields are only known at runtime via
+        # extra="allow" -- pydantic's synthesized __init__ that mypy sees
+        # only lists the declared fields, so construction from a dict via
+        # model_validate() (as the real YAML loader does) rather than
+        # keyword arguments, matching how production code always builds
+        # these.
+        config = DeviceConfig.model_validate(
+            {
+                "type": "switch",
+                "individual_address": "1.1.1",
+                "control_ga": "1/1/1",
+                "status_ga": "1/1/2",
+            }
         )
         assert config.require("control_ga") == "1/1/1"
         assert config.require("status_ga") == "1/1/2"
@@ -62,7 +70,9 @@ class TestDeviceConfig:
         assert config.get("initial_value", False) is False
 
     def test_get_returns_value_when_present(self) -> None:
-        config = DeviceConfig(type="switch", individual_address="1.1.1", initial_value=True)
+        config = DeviceConfig.model_validate(
+            {"type": "switch", "individual_address": "1.1.1", "initial_value": True}
+        )
         assert config.get("initial_value", False) is True
 
 
@@ -73,19 +83,23 @@ class TestInstallationConfig:
         assert config.simulator == SimulatorConfig()
 
     def test_accepts_multiple_devices_with_distinct_addresses(self) -> None:
-        config = InstallationConfig(
-            devices=[
-                {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/1"},
-                {"type": "switch", "individual_address": "1.1.2", "control_ga": "1/1/2"},
-            ]
+        config = InstallationConfig.model_validate(
+            {
+                "devices": [
+                    {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/1"},
+                    {"type": "switch", "individual_address": "1.1.2", "control_ga": "1/1/2"},
+                ]
+            }
         )
         assert len(config.devices) == 2
 
     def test_rejects_duplicate_individual_addresses(self) -> None:
         with pytest.raises(ValidationError, match="duplicate individual_address"):
-            InstallationConfig(
-                devices=[
-                    {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/1"},
-                    {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/2"},
-                ]
+            InstallationConfig.model_validate(
+                {
+                    "devices": [
+                        {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/1"},
+                        {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/2"},
+                    ]
+                }
             )

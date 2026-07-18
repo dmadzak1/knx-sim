@@ -11,6 +11,12 @@ from knx_sim.devices.presence import PresenceSensor
 from knx_sim.devices.switch import SwitchActuator, WallSwitch
 from knx_sim.devices.thermostat import Thermostat
 
+# DeviceConfig's extra (device-specific) fields only exist at runtime via
+# extra="allow" -- mypy's view of pydantic's synthesized __init__ only
+# knows the declared fields, so every config with extra fields below is
+# built via model_validate(dict) rather than keyword arguments, matching
+# how production code (the YAML loader) always builds these.
+
 
 def test_all_device_types_registered() -> None:
     assert set(DEVICE_TYPES) == {
@@ -31,12 +37,14 @@ def test_unknown_type_raises_helpful_error() -> None:
 
 class TestBuildSwitch:
     def test_builds_switch_actuator(self) -> None:
-        config = DeviceConfig(
-            type="switch",
-            individual_address="1.1.1",
-            control_ga="1/1/1",
-            status_ga="1/1/2",
-            initial_value=True,
+        config = DeviceConfig.model_validate(
+            {
+                "type": "switch",
+                "individual_address": "1.1.1",
+                "control_ga": "1/1/1",
+                "status_ga": "1/1/2",
+                "initial_value": True,
+            }
         )
         device = build_device(config)
         assert isinstance(device, SwitchActuator)
@@ -46,15 +54,17 @@ class TestBuildSwitch:
         assert device.group_objects["status"].value is True
 
     def test_missing_required_field_raises(self) -> None:
-        config = DeviceConfig(type="switch", individual_address="1.1.1", control_ga="1/1/1")
+        config = DeviceConfig.model_validate(
+            {"type": "switch", "individual_address": "1.1.1", "control_ga": "1/1/1"}
+        )
         with pytest.raises(ValueError, match="missing required field 'status_ga'"):
             build_device(config)
 
 
 class TestBuildWallSwitch:
     def test_builds_wall_switch(self) -> None:
-        config = DeviceConfig(
-            type="wall_switch", individual_address="1.1.9", control_ga="1/1/1"
+        config = DeviceConfig.model_validate(
+            {"type": "wall_switch", "individual_address": "1.1.9", "control_ga": "1/1/1"}
         )
         device = build_device(config)
         assert isinstance(device, WallSwitch)
@@ -63,16 +73,18 @@ class TestBuildWallSwitch:
 
 class TestBuildDimmer:
     def test_builds_dimmer_actuator(self) -> None:
-        config = DeviceConfig(
-            type="dimmer",
-            individual_address="1.1.2",
-            switch_ga="1/1/10",
-            relative_dim_ga="1/1/11",
-            brightness_ga="1/1/12",
-            switch_status_ga="1/1/13",
-            brightness_status_ga="1/1/14",
-            initial_brightness=50.0,
-            ramp_time_full_range=4.0,
+        config = DeviceConfig.model_validate(
+            {
+                "type": "dimmer",
+                "individual_address": "1.1.2",
+                "switch_ga": "1/1/10",
+                "relative_dim_ga": "1/1/11",
+                "brightness_ga": "1/1/12",
+                "switch_status_ga": "1/1/13",
+                "brightness_status_ga": "1/1/14",
+                "initial_brightness": 50.0,
+                "ramp_time_full_range": 4.0,
+            }
         )
         device = build_device(config)
         assert isinstance(device, DimmerActuator)
@@ -82,15 +94,17 @@ class TestBuildDimmer:
 
 class TestBuildBlind:
     def test_builds_blind_actuator(self) -> None:
-        config = DeviceConfig(
-            type="blind",
-            individual_address="1.1.3",
-            move_ga="1/2/1",
-            stop_ga="1/2/2",
-            position_ga="1/2/3",
-            position_status_ga="1/2/4",
-            moving_status_ga="1/2/5",
-            initial_position=25.0,
+        config = DeviceConfig.model_validate(
+            {
+                "type": "blind",
+                "individual_address": "1.1.3",
+                "move_ga": "1/2/1",
+                "stop_ga": "1/2/2",
+                "position_ga": "1/2/3",
+                "position_status_ga": "1/2/4",
+                "moving_status_ga": "1/2/5",
+                "initial_position": 25.0,
+            }
         )
         device = build_device(config)
         assert isinstance(device, BlindActuator)
@@ -99,14 +113,16 @@ class TestBuildBlind:
 
 class TestBuildThermostat:
     def test_builds_thermostat(self) -> None:
-        config = DeviceConfig(
-            type="thermostat",
-            individual_address="1.1.4",
-            temperature_ga="1/3/1",
-            setpoint_ga="1/3/2",
-            heating_demand_ga="1/3/3",
-            initial_temperature=19.5,
-            initial_setpoint=22.0,
+        config = DeviceConfig.model_validate(
+            {
+                "type": "thermostat",
+                "individual_address": "1.1.4",
+                "temperature_ga": "1/3/1",
+                "setpoint_ga": "1/3/2",
+                "heating_demand_ga": "1/3/3",
+                "initial_temperature": 19.5,
+                "initial_setpoint": 22.0,
+            }
         )
         device = build_device(config)
         assert isinstance(device, Thermostat)
@@ -116,12 +132,14 @@ class TestBuildThermostat:
 
 class TestBuildPresence:
     def test_builds_presence_sensor(self) -> None:
-        config = DeviceConfig(
-            type="presence",
-            individual_address="1.1.5",
-            presence_ga="1/4/1",
-            hold_time=45.0,
-            random_activity=True,
+        config = DeviceConfig.model_validate(
+            {
+                "type": "presence",
+                "individual_address": "1.1.5",
+                "presence_ga": "1/4/1",
+                "hold_time": 45.0,
+                "random_activity": True,
+            }
         )
         device = build_device(config)
         assert isinstance(device, PresenceSensor)

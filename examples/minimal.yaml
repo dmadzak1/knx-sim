@@ -1,0 +1,22 @@
+# Minimal installation: one wall switch wired to one lamp (F-CFG-3).
+#
+# The wall switch and the switch actuator share a control group address --
+# that's the whole wiring model: pressing the switch (via press() from a
+# scenario script or the future web UI) writes to 1/1/1, which the lamp's
+# switch actuator receives as its control input and mirrors to its own
+# status group address.
+
+simulator:
+  name: knx-sim-minimal
+
+devices:
+  - type: wall_switch
+    individual_address: "1.1.1"
+    name: hallway_switch
+    control_ga: "1/1/1"
+
+  - type: switch
+    individual_address: "1.1.2"
+    name: hallway_lamp
+    control_ga: "1/1/1"
+    status_ga: "1/1/2"
