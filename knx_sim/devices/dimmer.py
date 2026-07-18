@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
+from knx_sim.config.models import DeviceConfig
 from knx_sim.devices.device import Device
 from knx_sim.devices.group_object import GroupObject, GroupObjectFlags
 from knx_sim.dpt.dpt3 import DimmingControl
@@ -94,6 +95,24 @@ class DimmerActuator(Device):
         self._ramp_time_full_range = ramp_time_full_range
         self._ramp_tick_interval = ramp_tick_interval
         self._ramp_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def from_config(cls, config: DeviceConfig) -> DimmerActuator:
+        return cls(
+            IndividualAddress.from_string(config.individual_address),
+            GroupAddress.from_string(config.require("switch_ga")),
+            GroupAddress.from_string(config.require("relative_dim_ga")),
+            GroupAddress.from_string(config.require("brightness_ga")),
+            GroupAddress.from_string(config.require("switch_status_ga")),
+            GroupAddress.from_string(config.require("brightness_status_ga")),
+            initial_brightness=float(config.get("initial_brightness", 0.0)),
+            ramp_time_full_range=float(
+                config.get("ramp_time_full_range", DEFAULT_RAMP_TIME_FULL_RANGE)
+            ),
+            ramp_tick_interval=float(
+                config.get("ramp_tick_interval", DEFAULT_RAMP_TICK_INTERVAL)
+            ),
+        )
 
     async def handle_group_write(self, group_object: GroupObject) -> None:
         if group_object.name == "switch":

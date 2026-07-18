@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
+from knx_sim.config.models import DeviceConfig
 from knx_sim.devices.device import Device
 from knx_sim.devices.group_object import GroupObject, GroupObjectFlags
 
@@ -90,6 +91,24 @@ class BlindActuator(Device):
         self._travel_time_full_range = travel_time_full_range
         self._travel_tick_interval = travel_tick_interval
         self._travel_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def from_config(cls, config: DeviceConfig) -> BlindActuator:
+        return cls(
+            IndividualAddress.from_string(config.individual_address),
+            GroupAddress.from_string(config.require("move_ga")),
+            GroupAddress.from_string(config.require("stop_ga")),
+            GroupAddress.from_string(config.require("position_ga")),
+            GroupAddress.from_string(config.require("position_status_ga")),
+            GroupAddress.from_string(config.require("moving_status_ga")),
+            initial_position=float(config.get("initial_position", 0.0)),
+            travel_time_full_range=float(
+                config.get("travel_time_full_range", DEFAULT_TRAVEL_TIME_FULL_RANGE)
+            ),
+            travel_tick_interval=float(
+                config.get("travel_tick_interval", DEFAULT_TRAVEL_TICK_INTERVAL)
+            ),
+        )
 
     async def handle_group_write(self, group_object: GroupObject) -> None:
         if group_object.name == "move":

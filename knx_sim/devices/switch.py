@@ -8,6 +8,7 @@ the bus; neither device holds a direct reference to the other.
 from __future__ import annotations
 
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
+from knx_sim.config.models import DeviceConfig
 from knx_sim.devices.device import Device
 from knx_sim.devices.group_object import GroupObject, GroupObjectFlags
 
@@ -42,6 +43,15 @@ class SwitchActuator(Device):
         )
         super().__init__(individual_address, [control, status])
 
+    @classmethod
+    def from_config(cls, config: DeviceConfig) -> SwitchActuator:
+        return cls(
+            IndividualAddress.from_string(config.individual_address),
+            GroupAddress.from_string(config.require("control_ga")),
+            GroupAddress.from_string(config.require("status_ga")),
+            initial_value=bool(config.get("initial_value", False)),
+        )
+
     async def handle_group_write(self, group_object: GroupObject) -> None:
         if group_object.name != "control":
             return
@@ -73,6 +83,14 @@ class WallSwitch(Device):
             value=initial_value,
         )
         super().__init__(individual_address, [control])
+
+    @classmethod
+    def from_config(cls, config: DeviceConfig) -> WallSwitch:
+        return cls(
+            IndividualAddress.from_string(config.individual_address),
+            GroupAddress.from_string(config.require("control_ga")),
+            initial_value=bool(config.get("initial_value", False)),
+        )
 
     async def press(self) -> None:
         """Toggle the control value and transmit it, as a physical press would."""

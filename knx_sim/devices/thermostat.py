@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
+from knx_sim.config.models import DeviceConfig
 from knx_sim.devices.device import Device
 from knx_sim.devices.group_object import GroupObject, GroupObjectFlags
 
@@ -100,6 +101,28 @@ class Thermostat(Device):
         self._cyclic_period = cyclic_period
         self._significant_change = significant_change
         self._tick_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def from_config(cls, config: DeviceConfig) -> Thermostat:
+        return cls(
+            IndividualAddress.from_string(config.individual_address),
+            GroupAddress.from_string(config.require("temperature_ga")),
+            GroupAddress.from_string(config.require("setpoint_ga")),
+            GroupAddress.from_string(config.require("heating_demand_ga")),
+            initial_temperature=float(config.get("initial_temperature", 20.0)),
+            initial_setpoint=float(config.get("initial_setpoint", 21.0)),
+            ambient_temperature=float(config.get("ambient_temperature", 18.0)),
+            drift_fraction=float(config.get("drift_fraction", DEFAULT_DRIFT_FRACTION)),
+            heating_rate_per_tick=float(
+                config.get("heating_rate_per_tick", DEFAULT_HEATING_RATE_PER_TICK)
+            ),
+            hysteresis=float(config.get("hysteresis", DEFAULT_HYSTERESIS)),
+            tick_interval=float(config.get("tick_interval", DEFAULT_TICK_INTERVAL)),
+            cyclic_period=float(config.get("cyclic_period", DEFAULT_CYCLIC_PERIOD)),
+            significant_change=float(
+                config.get("significant_change", DEFAULT_SIGNIFICANT_CHANGE)
+            ),
+        )
 
     async def start(self) -> None:
         self._tick_task = asyncio.create_task(self._run_physics())

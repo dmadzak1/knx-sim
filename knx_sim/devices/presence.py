@@ -15,6 +15,7 @@ import asyncio
 import random
 
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
+from knx_sim.config.models import DeviceConfig
 from knx_sim.devices.device import Device
 from knx_sim.devices.group_object import GroupObject, GroupObjectFlags
 
@@ -63,6 +64,25 @@ class PresenceSensor(Device):
         self._random_activity_max_interval = random_activity_max_interval
         self._hold_task: asyncio.Task[None] | None = None
         self._random_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def from_config(cls, config: DeviceConfig) -> PresenceSensor:
+        return cls(
+            IndividualAddress.from_string(config.individual_address),
+            GroupAddress.from_string(config.require("presence_ga")),
+            hold_time=float(config.get("hold_time", DEFAULT_HOLD_TIME)),
+            random_activity=bool(config.get("random_activity", False)),
+            random_activity_min_interval=float(
+                config.get(
+                    "random_activity_min_interval", DEFAULT_RANDOM_ACTIVITY_MIN_INTERVAL
+                )
+            ),
+            random_activity_max_interval=float(
+                config.get(
+                    "random_activity_max_interval", DEFAULT_RANDOM_ACTIVITY_MAX_INTERVAL
+                )
+            ),
+        )
 
     async def trigger(self) -> None:
         """Simulate a motion event: set presence and (re)start the hold timer."""
