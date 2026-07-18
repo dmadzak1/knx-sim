@@ -27,9 +27,9 @@ TP1 physical-layer simulation (bit timing, collisions, ACKs) beyond the fixed de
 ## Milestones and current status
 M0 bootstrap → M1 DPT codec (1.001/1.008/1.009, 3.007, 5.001/5.004, 9.x, 7.x, 14.x) → M2 cEMI frames + addresses → M3 in-process bus + switch/lamp devices → M4 KNXnet/IP discovery + routing → M5 tunneling (hardest, the core deliverable: CONNECT/TUNNELING_REQUEST/ACK, sequence counters, CONNECTIONSTATE heartbeat, ≥4 concurrent tunnels) → M6 device library + YAML config → M7 web dashboard → M8 scenarios, docs, polish.
 
-**Current status: M0 done.** Update the line below as work progresses.
+**Current status: M1 done.** Update the line below as work progresses.
 
-> STATUS: M0 done (project skeleton, pyproject.toml, empty dpt/cemi/bus/knxip/devices/config packages + mirrored tests/, ruff+mypy strict config, CLAUDE.md, venv). docs/ is gitignored (local-only, not pushed to GitHub). Next action: M1 — DPT codec, starting with DPT 1.001 per docs/GUIDE.md Part 3 Step 3.1.
+> STATUS: M1 done. DPT codecs implemented: 1.001/1.008/1.009 (1-bit, shared DPT1BitBase), 3.007 (4-bit dimming control, DimmingControl dataclass), 5.001/5.004 (1-byte unsigned), 9.001 (16-bit KNX float, shared DPT9Base — worked example in docs/notes/dpt9.md), 7.001 (2-byte unsigned), 14.056 (4-byte IEEE 754 float). All verified byte-for-byte against xknx (scripts/compare_with_xknx.py, 54/54 match). 125 tests passing, ruff+mypy strict clean. Next action: M2 — cEMI frames, starting with the annotated byte-layout walkthrough per docs/GUIDE.md Part 4 Step 4.1.
 
 ## Working conventions
 - Fully type-annotated, mypy --strict clean, ruff formatted, coverage target ≥85% on dpt/cemi/bus.
