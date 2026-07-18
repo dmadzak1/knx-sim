@@ -20,6 +20,7 @@ from knx_sim.knxip.frame import (
 )
 from knx_sim.knxip.header import Header, ServiceType
 from knx_sim.knxip.hpai import HPAI, HostProtocol
+from knx_sim.knxip.server import KnxIpServer
 
 __all__ = [
     "HPAI",
@@ -31,6 +32,7 @@ __all__ = [
     "Header",
     "HostProtocol",
     "KNXMedium",
+    "KnxIpServer",
     "ParseError",
     "RoutingIndication",
     "SearchRequest",

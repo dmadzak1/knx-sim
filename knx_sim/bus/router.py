@@ -84,6 +84,13 @@ class Bus:
                 (device, group_object)
             )
 
+    def has_device(self, individual_address: IndividualAddress) -> bool:
+        """Return True if individual_address belongs to a locally registered
+        device. Used by the KNXnet/IP routing layer (M4) to distinguish
+        locally-originated telegrams (re-multicast them) from ones that
+        arrived from the network (never re-relay -- loop prevention, F-IP-2)."""
+        return individual_address in self._devices
+
     def subscribe(self, callback: MonitorCallback) -> None:
         """Register a monitor callback invoked for every processed telegram (F-BUS-6)."""
         self._monitors.append(callback)

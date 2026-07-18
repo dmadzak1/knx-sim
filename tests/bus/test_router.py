@@ -64,6 +64,14 @@ class TestRegister:
         await device.send(telegram)  # must not raise
         await bus.join()
 
+    async def test_has_device(self, bus: Bus) -> None:
+        registered = IndividualAddress(1, 1, 1)
+        unregistered = IndividualAddress(9, 9, 9)
+        bus.register(Device(registered, [_go("a", GA, write=True)]))
+
+        assert bus.has_device(registered) is True
+        assert bus.has_device(unregistered) is False
+
 
 class TestWriteRouting:
     async def test_delivered_to_write_flagged_subscriber(self, bus: Bus) -> None:
