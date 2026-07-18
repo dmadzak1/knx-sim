@@ -11,16 +11,20 @@ dependency in pyproject.toml).
 
 from __future__ import annotations
 
-from xknx.dpt.dpt_1 import DPTSwitch, Step, Switch
+from xknx.dpt.dpt_1 import DPTOpenClose, DPTSwitch, DPTUpDown, OpenClose, Step, Switch, UpDown
 from xknx.dpt.dpt_3 import ControlDimming, DPTControlDimming
 from xknx.dpt.dpt_5 import DPTPercentU8, DPTScaling
+from xknx.dpt.dpt_7 import DPT2Ucount
 from xknx.dpt.dpt_9 import DPTTemperature
+from xknx.dpt.dpt_14 import DPTPower
 from xknx.dpt.payload import DPTArray, DPTBinary
 
-from knx_sim.dpt.dpt1 import DPT1001
+from knx_sim.dpt.dpt1 import DPT1001, DPT1008, DPT1009
 from knx_sim.dpt.dpt3 import DPT3007, DimmingControl
 from knx_sim.dpt.dpt5 import DPT5001, DPT5004
+from knx_sim.dpt.dpt7 import DPT7001
 from knx_sim.dpt.dpt9 import DPT9001
+from knx_sim.dpt.dpt14 import DPT14056
 
 
 def xknx_bytes(payload: DPTArray | DPTBinary) -> bytes:
@@ -46,6 +50,18 @@ def main() -> None:
         ours = DPT1001.encode(switch_value)
         theirs = xknx_bytes(DPTSwitch.to_knx(switch))
         all_ok &= compare("1.001", str(switch_value), ours, theirs)
+
+    for updown_value in (False, True):
+        updown = UpDown.DOWN if updown_value else UpDown.UP
+        ours = DPT1008.encode(updown_value)
+        theirs = xknx_bytes(DPTUpDown.to_knx(updown))
+        all_ok &= compare("1.008", str(updown_value), ours, theirs)
+
+    for openclose_value in (False, True):
+        openclose = OpenClose.CLOSE if openclose_value else OpenClose.OPEN
+        ours = DPT1009.encode(openclose_value)
+        theirs = xknx_bytes(DPTOpenClose.to_knx(openclose))
+        all_ok &= compare("1.009", str(openclose_value), ours, theirs)
 
     for direction in (False, True):
         for step_code in range(8):
@@ -83,6 +99,16 @@ def main() -> None:
         ours = DPT9001.encode(temp_value)
         theirs = xknx_bytes(DPTTemperature.to_knx(temp_value))
         all_ok &= compare("9.001", str(temp_value), ours, theirs)
+
+    for count_value in (0, 1, 256, 12345, 65535):
+        ours = DPT7001.encode(count_value)
+        theirs = xknx_bytes(DPT2Ucount.to_knx(count_value))
+        all_ok &= compare("7.001", str(count_value), ours, theirs)
+
+    for power_value in (0.0, 1.0, -1.0, 100.5, 3.14159, -273.15, 1e10):
+        ours = DPT14056.encode(power_value)
+        theirs = xknx_bytes(DPTPower.to_knx(power_value))
+        all_ok &= compare("14.056", str(power_value), ours, theirs)
 
     print()
     print("All match." if all_ok else "DIFFERENCES FOUND -- fix knx_sim before committing M1.")
