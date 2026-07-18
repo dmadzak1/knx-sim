@@ -1,14 +1,19 @@
 """Pydantic models for the YAML installation config (F-CFG-1).
 
 DeviceConfig deliberately only types the fields every device shares (type,
-individual_address, name); everything device-specific -- group addresses,
-ramp/travel times, hold times, whatever -- is free-form extra YAML keys at
-the same top level (model_config extra="allow"), so a device's own
-from_config() classmethod is the only place that knows its own field names
-(see knx_sim/config/registry.py). require()/get() are typed accessors for
-those extra fields: pydantic exposes them dynamically via __getattr__, which
-mypy --strict can't see through, so callers go through these instead of
-raw attribute access.
+individual_address, name, room); everything device-specific -- group
+addresses, ramp/travel times, hold times, whatever -- is free-form extra
+YAML keys at the same top level (model_config extra="allow"), so a
+device's own from_config() classmethod is the only place that knows its
+own field names (see knx_sim/config/registry.py). require()/get() are
+typed accessors for those extra fields: pydantic exposes them dynamically
+via __getattr__, which mypy --strict can't see through, so callers go
+through these instead of raw attribute access.
+
+room is a declared field rather than an extra one, even though no Device
+constructor uses it: it's pure dashboard-display metadata (F-WEB-3's
+"device cards grouped by room"), not a device behavior parameter, so it
+belongs at the same level as name/type rather than being device-specific.
 """
 
 from __future__ import annotations
@@ -71,6 +76,7 @@ class DeviceConfig(BaseModel):
     type: str
     individual_address: str
     name: str | None = None
+    room: str | None = None
 
     @field_validator("individual_address")
     @classmethod

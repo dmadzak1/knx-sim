@@ -11,6 +11,8 @@ readme = "README.md"
 dependencies = [
     "pydantic>=2.0",
     "pyyaml>=6.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +23,7 @@ dev = [
     "ruff",
     "mypy",
     "types-PyYAML",
+    "httpx",
 ]
 
 [tool.setuptools.packages.find]

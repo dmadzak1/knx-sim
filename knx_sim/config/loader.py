@@ -20,7 +20,7 @@ from pydantic import ValidationError
 
 from knx_sim.bus.router import Bus
 from knx_sim.cemi.address import IndividualAddress
-from knx_sim.config.models import InstallationConfig
+from knx_sim.config.models import DeviceConfig, InstallationConfig
 from knx_sim.config.registry import build_device
 from knx_sim.devices.device import Device
 from knx_sim.knxip.server import KnxIpServer
@@ -40,11 +40,19 @@ def load_installation_file(path: str | Path) -> InstallationConfig:
 @dataclass
 class Simulator:
     """A fully wired, not-yet-started simulator: bus, KNXnet/IP server, and
-    every device registered onto the bus."""
+    every device registered onto the bus.
+
+    device_configs pairs each built Device back to the DeviceConfig it came
+    from, keyed by individual address -- Device itself only knows its
+    group objects (a bus/protocol concern), not display metadata like
+    name/room/type (a config concern), and the web dashboard (M7) needs
+    both.
+    """
 
     bus: Bus
     server: KnxIpServer
     devices: list[Device]
+    device_configs: dict[IndividualAddress, DeviceConfig]
 
 
 def build_simulator(config: InstallationConfig) -> Simulator:
@@ -61,4 +69,8 @@ def build_simulator(config: InstallationConfig) -> Simulator:
         friendly_name=config.simulator.name,
         max_tunnels=config.simulator.max_tunnels,
     )
-    return Simulator(bus=bus, server=server, devices=devices)
+    device_configs = {
+        device.individual_address: device_config
+        for device, device_config in zip(devices, config.devices, strict=True)
+    }
+    return Simulator(bus=bus, server=server, devices=devices, device_configs=device_configs)

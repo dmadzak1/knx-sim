@@ -31,6 +31,11 @@ class TestLoadInstallationFile:
             "thermostat",
             "presence",
         }
+        assert {d.room for d in config.devices} == {"Living Room", "Bedroom"}
+
+    def test_minimal_yaml_devices_have_no_room(self) -> None:
+        config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
+        assert all(d.room is None for d in config.devices)
 
     def test_raises_helpful_error_on_invalid_config(self, tmp_path: Path) -> None:
         bad_file = tmp_path / "bad.yaml"
@@ -69,6 +74,18 @@ class TestBuildSimulator:
             lamp = next(d for d in simulator.devices if isinstance(d, SwitchActuator))
             assert wall_switch.group_objects["control"].group_address == GroupAddress(1, 1, 1)
             assert lamp.group_objects["status"].group_address == GroupAddress(1, 1, 2)
+        finally:
+            await simulator.bus.stop()
+
+    async def test_device_configs_pairs_each_device_with_its_config(self) -> None:
+        config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
+        simulator = build_simulator(config)
+        try:
+            assert len(simulator.device_configs) == 2
+            wall_switch = next(d for d in simulator.devices if isinstance(d, WallSwitch))
+            device_config = simulator.device_configs[wall_switch.individual_address]
+            assert device_config.name == "hallway_switch"
+            assert device_config.type == "wall_switch"
         finally:
             await simulator.bus.stop()
 

@@ -1,7 +1,9 @@
 # Demo house: two rooms, ten devices, every device type at least once
 # (F-CFG-3). Individual addresses use line 1 for the living room and line 2
 # for the bedroom; group addresses follow the same main-address-per-room
-# convention (1/... for the living room, 2/... for the bedroom).
+# convention (1/... for the living room, 2/... for the bedroom). room is
+# display-only metadata for the web dashboard (M7, F-WEB-3) -- it has no
+# effect on bus behavior.
 
 simulator:
   name: knx-sim-demo-house
@@ -11,17 +13,20 @@ devices:
   - type: wall_switch
     individual_address: "1.1.1"
     name: living_room_switch
+    room: Living Room
     control_ga: "1/1/1"
 
   - type: switch
     individual_address: "1.1.2"
     name: living_room_lamp
+    room: Living Room
     control_ga: "1/1/1"
     status_ga: "1/1/2"
 
   - type: dimmer
     individual_address: "1.1.3"
     name: living_room_dimmer
+    room: Living Room
     switch_ga: "1/1/10"
     relative_dim_ga: "1/1/11"
     brightness_ga: "1/1/12"
@@ -31,6 +36,7 @@ devices:
   - type: blind
     individual_address: "1.1.4"
     name: living_room_blind
+    room: Living Room
     move_ga: "1/1/20"
     stop_ga: "1/1/21"
     position_ga: "1/1/22"
@@ -40,6 +46,7 @@ devices:
   - type: thermostat
     individual_address: "1.1.5"
     name: living_room_thermostat
+    room: Living Room
     temperature_ga: "1/1/30"
     setpoint_ga: "1/1/31"
     heating_demand_ga: "1/1/32"
@@ -48,17 +55,20 @@ devices:
   - type: wall_switch
     individual_address: "1.2.1"
     name: bedroom_switch
+    room: Bedroom
     control_ga: "1/2/1"
 
   - type: switch
     individual_address: "1.2.2"
     name: bedroom_lamp
+    room: Bedroom
     control_ga: "1/2/1"
     status_ga: "1/2/2"
 
   - type: blind
     individual_address: "1.2.3"
     name: bedroom_blind
+    room: Bedroom
     move_ga: "1/2/20"
     stop_ga: "1/2/21"
     position_ga: "1/2/22"
@@ -68,6 +78,7 @@ devices:
   - type: thermostat
     individual_address: "1.2.4"
     name: bedroom_thermostat
+    room: Bedroom
     temperature_ga: "1/2/30"
     setpoint_ga: "1/2/31"
     heating_demand_ga: "1/2/32"
@@ -75,5 +86,6 @@ devices:
   - type: presence
     individual_address: "1.2.5"
     name: bedroom_presence
+    room: Bedroom
     presence_ga: "1/2/40"
     hold_time: 60.0
