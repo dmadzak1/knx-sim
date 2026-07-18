@@ -21,6 +21,13 @@ from knx_sim.knxip.frame import (
 from knx_sim.knxip.header import Header, ServiceType
 from knx_sim.knxip.hpai import HPAI, HostProtocol
 from knx_sim.knxip.server import KnxIpServer
+from knx_sim.knxip.tunnel_channel import (
+    ChannelState,
+    SequenceResult,
+    TunnelCapacityError,
+    TunnelChannel,
+    TunnelRegistry,
+)
 from knx_sim.knxip.tunneling import (
     ConnectionStateRequest,
     ConnectionStateResponse,
@@ -40,6 +47,7 @@ from knx_sim.knxip.tunneling import ErrorCode as TunnelingErrorCode
 __all__ = [
     "HPAI",
     "AnyFrame",
+    "ChannelState",
     "ConnectRequest",
     "ConnectRequestInformation",
     "ConnectRequestType",
@@ -61,10 +69,14 @@ __all__ = [
     "RoutingIndication",
     "SearchRequest",
     "SearchResponse",
+    "SequenceResult",
     "ServiceFamily",
     "ServiceType",
     "SupportedServiceFamiliesDIB",
     "SupportedServiceFamily",
+    "TunnelCapacityError",
+    "TunnelChannel",
+    "TunnelRegistry",
     "TunnellingAck",
     "TunnellingLayer",
     "TunnellingRequest",
