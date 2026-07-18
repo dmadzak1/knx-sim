@@ -3,9 +3,9 @@
 Layout: header_length(1)=0x06, protocol_version(1)=0x10, service_type(2, big
 endian), total_length(2, big endian, header+body combined).
 
-ServiceType is deliberately narrow -- only the services M4 implements
-(discovery + routing). Tunneling service types (CONNECT_REQUEST, etc.) are
-added in M5.
+ServiceType is deliberately narrow -- only the services M4 (discovery +
+routing) and M5 (tunneling) implement. Basic CRI/CRD only (Tunnelling v2 /
+Extended is out of scope, see knx_sim/knxip/tunneling.py).
 """
 
 from __future__ import annotations
@@ -24,6 +24,14 @@ class ServiceType(Enum):
     SEARCH_RESPONSE = 0x0202
     DESCRIPTION_REQUEST = 0x0203
     DESCRIPTION_RESPONSE = 0x0204
+    CONNECT_REQUEST = 0x0205
+    CONNECT_RESPONSE = 0x0206
+    CONNECTIONSTATE_REQUEST = 0x0207
+    CONNECTIONSTATE_RESPONSE = 0x0208
+    DISCONNECT_REQUEST = 0x0209
+    DISCONNECT_RESPONSE = 0x020A
+    TUNNELLING_REQUEST = 0x0420
+    TUNNELLING_ACK = 0x0421
     ROUTING_INDICATION = 0x0530
 
 

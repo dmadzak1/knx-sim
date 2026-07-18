@@ -13,10 +13,34 @@ from __future__ import annotations
 
 from xknx.knxip import HPAI as XHPAI
 from xknx.knxip import (
+    ConnectionStateRequest as XConnectionStateRequest,
+)
+from xknx.knxip import (
+    ConnectionStateResponse as XConnectionStateResponse,
+)
+from xknx.knxip import (
+    ConnectRequest as XConnectRequest,
+)
+from xknx.knxip import (
+    ConnectRequestInformation as XConnectRequestInformation,
+)
+from xknx.knxip import (
+    ConnectResponse as XConnectResponse,
+)
+from xknx.knxip import (
+    ConnectResponseData as XConnectResponseData,
+)
+from xknx.knxip import (
     DescriptionRequest as XDescriptionRequest,
 )
 from xknx.knxip import (
     DescriptionResponse as XDescriptionResponse,
+)
+from xknx.knxip import (
+    DisconnectRequest as XDisconnectRequest,
+)
+from xknx.knxip import (
+    DisconnectResponse as XDisconnectResponse,
 )
 from xknx.knxip import (
     KNXIPFrame as XKNXIPFrame,
@@ -29,6 +53,12 @@ from xknx.knxip import (
 )
 from xknx.knxip import (
     SearchResponse as XSearchResponse,
+)
+from xknx.knxip import (
+    TunnellingAck as XTunnellingAck,
+)
+from xknx.knxip import (
+    TunnellingRequest as XTunnellingRequest,
 )
 from xknx.knxip.dib import DIBDeviceInformation as XDIBDeviceInformation
 from xknx.knxip.dib import DIBSuppSVCFamilies as XDIBSuppSVCFamilies
@@ -52,6 +82,18 @@ from knx_sim.knxip.frame import (
     SearchResponse,
 )
 from knx_sim.knxip.hpai import HPAI
+from knx_sim.knxip.tunneling import (
+    ConnectionStateRequest,
+    ConnectionStateResponse,
+    ConnectRequest,
+    ConnectResponse,
+    ConnectResponseData,
+    DisconnectRequest,
+    DisconnectResponse,
+    ErrorCode,
+    TunnellingAck,
+    TunnellingRequest,
+)
 
 
 def compare(label: str, ours: bytes, theirs: bytes) -> bool:
@@ -144,6 +186,84 @@ def main() -> None:
     ours = RoutingIndication(raw_cemi=cemi).to_knx()
     theirs = XKNXIPFrame.init_from_body(XRoutingIndication(raw_cemi=cemi)).to_knx()
     all_ok &= compare("RoutingIndication", ours, theirs)
+
+    client_hpai = HPAI("192.168.1.5", 54321)
+    x_client_hpai = XHPAI("192.168.1.5", 54321)
+
+    ours = ConnectRequest(control_endpoint=client_hpai, data_endpoint=client_hpai).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XConnectRequest(
+            control_endpoint=x_client_hpai,
+            data_endpoint=x_client_hpai,
+            cri=XConnectRequestInformation(),
+        )
+    ).to_knx()
+    all_ok &= compare("ConnectRequest", ours, theirs)
+
+    assigned_ia = IndividualAddress(15, 15, 1)
+    x_assigned_ia = XIndividualAddress("15.15.1")
+    server_hpai = HPAI("192.168.1.10", 3671)
+    x_server_hpai = XHPAI("192.168.1.10", 3671)
+
+    ours = ConnectResponse(
+        communication_channel_id=1,
+        status_code=ErrorCode.E_NO_ERROR,
+        data_endpoint=server_hpai,
+        crd=ConnectResponseData(individual_address=assigned_ia),
+    ).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XConnectResponse(
+            communication_channel=1,
+            data_endpoint=x_server_hpai,
+            crd=XConnectResponseData(individual_address=x_assigned_ia),
+        )
+    ).to_knx()
+    all_ok &= compare("ConnectResponse", ours, theirs)
+
+    # Note: an error-status ConnectResponse (no HPAI/CRD on the wire) isn't
+    # compared here -- xknx's own ConnectResponse.to_knx() unconditionally
+    # serializes data_endpoint+crd regardless of status_code (asymmetric
+    # with its own from_knx, which correctly skips them for errors), so it
+    # can't construct one without a dummy individual_address. Our
+    # round-trip test (test_tunneling.py) covers this directly instead.
+
+    ours = ConnectionStateRequest(
+        communication_channel_id=1, control_endpoint=client_hpai
+    ).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XConnectionStateRequest(communication_channel_id=1, control_endpoint=x_client_hpai)
+    ).to_knx()
+    all_ok &= compare("ConnectionStateRequest", ours, theirs)
+
+    ours = ConnectionStateResponse(communication_channel_id=1).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XConnectionStateResponse(communication_channel_id=1)
+    ).to_knx()
+    all_ok &= compare("ConnectionStateResponse", ours, theirs)
+
+    ours = DisconnectRequest(communication_channel_id=1, control_endpoint=client_hpai).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XDisconnectRequest(communication_channel_id=1, control_endpoint=x_client_hpai)
+    ).to_knx()
+    all_ok &= compare("DisconnectRequest", ours, theirs)
+
+    ours = DisconnectResponse(communication_channel_id=1).to_knx()
+    theirs = XKNXIPFrame.init_from_body(XDisconnectResponse(communication_channel_id=1)).to_knx()
+    all_ok &= compare("DisconnectResponse", ours, theirs)
+
+    ours = TunnellingRequest(
+        communication_channel_id=1, sequence_counter=5, raw_cemi=cemi
+    ).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XTunnellingRequest(communication_channel_id=1, sequence_counter=5, raw_cemi=cemi)
+    ).to_knx()
+    all_ok &= compare("TunnellingRequest", ours, theirs)
+
+    ours = TunnellingAck(communication_channel_id=1, sequence_counter=5).to_knx()
+    theirs = XKNXIPFrame.init_from_body(
+        XTunnellingAck(communication_channel_id=1, sequence_counter=5)
+    ).to_knx()
+    all_ok &= compare("TunnellingAck", ours, theirs)
 
     print()
     print("All match." if all_ok else "DIFFERENCES FOUND -- fix knx_sim before committing.")
