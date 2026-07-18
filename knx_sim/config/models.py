@@ -28,6 +28,7 @@ DEFAULT_SIMULATOR_NAME = "knx-sim"
 DEFAULT_PORT = 3671
 DEFAULT_MAX_TUNNELS = 4
 DEFAULT_DELAY_SECONDS = 0.02
+DEFAULT_WEB_PORT = 8080
 
 
 class SimulatorConfig(BaseModel):
@@ -39,6 +40,11 @@ class SimulatorConfig(BaseModel):
     individual_address: str = "15.15.0"
     max_tunnels: int = DEFAULT_MAX_TUNNELS
     delay_seconds: float = DEFAULT_DELAY_SECONDS
+    # The web dashboard always binds to 127.0.0.1 (F-WEB-5 -- it has no
+    # auth, so it must never be reachable beyond localhost by default);
+    # only its port is configurable here. Full CLI flags (including an
+    # opt-in override of the bind address) are M8's F-CLI-1 scope.
+    web_port: int = DEFAULT_WEB_PORT
 
     @field_validator("individual_address")
     @classmethod
@@ -46,9 +52,9 @@ class SimulatorConfig(BaseModel):
         IndividualAddress.from_string(value)  # raises ValueError on malformed input
         return value
 
-    @field_validator("port")
+    @field_validator("port", "web_port")
     @classmethod
-    def _validate_port(cls, value: int) -> int:
+    def _validate_port_range(cls, value: int) -> int:
         if not 1 <= value <= 65535:
             raise ValueError(f"port must be 1..65535, got {value}")
         return value

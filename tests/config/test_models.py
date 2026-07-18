@@ -15,6 +15,7 @@ class TestSimulatorConfig:
         assert config.individual_address == "15.15.0"
         assert config.max_tunnels == 4
         assert config.delay_seconds == 0.02
+        assert config.web_port == 8080
 
     def test_rejects_malformed_individual_address(self) -> None:
         with pytest.raises(ValidationError, match="Invalid individual address"):
@@ -23,6 +24,10 @@ class TestSimulatorConfig:
     def test_rejects_out_of_range_port(self) -> None:
         with pytest.raises(ValidationError, match="port must be 1..65535"):
             SimulatorConfig(port=70000)
+
+    def test_rejects_out_of_range_web_port(self) -> None:
+        with pytest.raises(ValidationError, match="port must be 1..65535"):
+            SimulatorConfig(web_port=0)
 
     def test_rejects_zero_max_tunnels(self) -> None:
         with pytest.raises(ValidationError, match="max_tunnels must be >= 1"):

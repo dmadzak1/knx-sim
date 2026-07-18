@@ -199,6 +199,14 @@ class KnxIpServer(asyncio.DatagramProtocol):
         return self._bind_address
 
     @property
+    def bind_address(self) -> str:
+        """Public alias for _local_ip: the resolved bind address (only valid
+        after start() has run). Used e.g. by the CLI (M7) to report which
+        interface the server actually ended up on, since bind_address=None
+        means "auto-detect" until start() resolves it."""
+        return self._local_ip
+
+    @property
     def active_tunnel_count(self) -> int:
         return len(self._tunnels)
 
