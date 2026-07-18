@@ -1,0 +1,22 @@
+{
+  "write_inline_on": {
+    "hex": "2900bce011170a0a010081",
+    "msg_code": "L_DATA_IND",
+    "description": "GroupValueWrite ON, 1.1.23 -> 1/2/10 (matches docs/notes/cemi.md worked example)"
+  },
+  "write_appended_2byte": {
+    "hex": "1100bce0110100010300800c33",
+    "msg_code": "L_DATA_REQ",
+    "description": "GroupValueWrite with a 2-byte appended payload (0x0C 0x33, e.g. DPT 9.001 21.5C)"
+  },
+  "read_no_payload": {
+    "hex": "2900bce023041905010000",
+    "msg_code": "L_DATA_IND",
+    "description": "GroupValueRead, no payload at all"
+  },
+  "response_appended_1byte": {
+    "hex": "2e00bce01105120202004080",
+    "msg_code": "L_DATA_CON",
+    "description": "GroupValueResponse with a 1-byte appended payload (128, e.g. DPT 5.001 50%)"
+  }
+}
