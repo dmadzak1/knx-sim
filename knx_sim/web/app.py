@@ -27,6 +27,7 @@ from knx_sim.dpt import get_codec
 from knx_sim.dpt.dpt3 import DimmingControl
 from knx_sim.web.schemas import (
     DeviceState,
+    GroupAddressNameEntry,
     GroupObjectFlagsResponse,
     GroupObjectState,
     InjectRequest,
@@ -87,11 +88,14 @@ def _coerce_value_for_encode(dpt_id: str, value: Any) -> Any:
     return value
 
 
-def _telegram_response(entry: TelegramLogEntry) -> TelegramResponse:
+def _telegram_response(
+    entry: TelegramLogEntry, group_address_names: dict[GroupAddress, str]
+) -> TelegramResponse:
     return TelegramResponse(
         timestamp=entry.timestamp,
         source=str(entry.telegram.source),
         destination=str(entry.telegram.destination),
+        destination_name=group_address_names.get(entry.telegram.destination),
         service=_SERVICE_TO_API[entry.telegram.service],
         dpt_id=entry.dpt_id,
         value=_serialize_value(entry.decoded_value),
@@ -110,6 +114,7 @@ def create_app(simulator: Simulator) -> FastAPI:
             group_objects = {
                 name: GroupObjectState(
                     group_address=str(group_object.group_address),
+                    name=simulator.group_address_names.get(group_object.group_address),
                     dpt_id=group_object.dpt_id,
                     value=_serialize_value(group_object.value),
                     flags=GroupObjectFlagsResponse(
@@ -163,7 +168,14 @@ def create_app(simulator: Simulator) -> FastAPI:
             and (since is None or entry.timestamp >= since)
         ]
         entries = entries[-limit:]
-        return [_telegram_response(entry) for entry in entries]
+        return [_telegram_response(entry, simulator.group_address_names) for entry in entries]
+
+    @app.get("/api/group_addresses")
+    def list_group_address_names() -> list[GroupAddressNameEntry]:
+        return [
+            GroupAddressNameEntry(address=str(ga), name=name)
+            for ga, name in simulator.group_address_names.items()
+        ]
 
     @app.post("/api/inject")
     async def inject_telegram(request: InjectRequest) -> InjectResponse:
@@ -216,7 +228,8 @@ def create_app(simulator: Simulator) -> FastAPI:
             # callback -- no need to re-decode the payload ourselves.
             entry = bus.telegram_log[-1]
             try:
-                queue.put_nowait(_telegram_response(entry).model_dump(mode="json"))
+                response = _telegram_response(entry, simulator.group_address_names)
+                queue.put_nowait(response.model_dump(mode="json"))
             except asyncio.QueueFull:
                 pass  # client is falling behind; drop rather than block the bus
 

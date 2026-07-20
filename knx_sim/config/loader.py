@@ -19,7 +19,7 @@ import yaml
 from pydantic import ValidationError
 
 from knx_sim.bus.router import Bus
-from knx_sim.cemi.address import IndividualAddress
+from knx_sim.cemi.address import GroupAddress, IndividualAddress
 from knx_sim.config.models import DeviceConfig, InstallationConfig
 from knx_sim.config.registry import build_device
 from knx_sim.devices.device import Device
@@ -47,12 +47,18 @@ class Simulator:
     group objects (a bus/protocol concern), not display metadata like
     name/room/type (a config concern), and the web dashboard (M7) needs
     both.
+
+    group_address_names is the parsed form of InstallationConfig's own
+    group_addresses registry (str -> str), keyed by GroupAddress instead
+    of the raw string so the web layer can look a telegram's or group
+    object's address up directly, without re-parsing on every lookup.
     """
 
     bus: Bus
     server: KnxIpServer
     devices: list[Device]
     device_configs: dict[IndividualAddress, DeviceConfig]
+    group_address_names: dict[GroupAddress, str]
 
 
 def build_simulator(config: InstallationConfig) -> Simulator:
@@ -73,4 +79,13 @@ def build_simulator(config: InstallationConfig) -> Simulator:
         device.individual_address: device_config
         for device, device_config in zip(devices, config.devices, strict=True)
     }
-    return Simulator(bus=bus, server=server, devices=devices, device_configs=device_configs)
+    group_address_names = {
+        GroupAddress.from_string(ga): name for ga, name in config.group_addresses.items()
+    }
+    return Simulator(
+        bus=bus,
+        server=server,
+        devices=devices,
+        device_configs=device_configs,
+        group_address_names=group_address_names,
+    )

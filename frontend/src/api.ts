@@ -1,4 +1,4 @@
-import type { DeviceState, InjectRequest, Telegram } from './types'
+import type { DeviceState, GroupAddressNameEntry, InjectRequest, Telegram } from './types'
 
 export async function fetchTelegrams(limit = 200): Promise<Telegram[]> {
   const response = await fetch(`/api/telegrams?limit=${limit}`)
@@ -14,6 +14,14 @@ export async function fetchDevices(): Promise<DeviceState[]> {
     throw new Error(`GET /api/devices failed: ${response.status}`)
   }
   return (await response.json()) as DeviceState[]
+}
+
+export async function fetchGroupAddressNames(): Promise<GroupAddressNameEntry[]> {
+  const response = await fetch('/api/group_addresses')
+  if (!response.ok) {
+    throw new Error(`GET /api/group_addresses failed: ${response.status}`)
+  }
+  return (await response.json()) as GroupAddressNameEntry[]
 }
 
 export async function injectTelegram(request: InjectRequest): Promise<void> {

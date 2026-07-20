@@ -97,3 +97,22 @@ class TestBuildSimulator:
             assert simulator.server._port == DEFAULT_PORT
         finally:
             await simulator.bus.stop()
+
+    async def test_group_address_names_parsed_from_registry(self) -> None:
+        config = load_installation_file(EXAMPLES_DIR / "demo-house.yaml")
+        simulator = build_simulator(config)
+        try:
+            assert simulator.group_address_names[GroupAddress(1, 1, 1)] == (
+                "Living Room Light A1"
+            )
+            assert len(simulator.group_address_names) == 26
+        finally:
+            await simulator.bus.stop()
+
+    async def test_minimal_yaml_has_no_group_address_names(self) -> None:
+        config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
+        simulator = build_simulator(config)
+        try:
+            assert simulator.group_address_names == {}
+        finally:
+            await simulator.bus.stop()

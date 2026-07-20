@@ -86,6 +86,7 @@ class TestInstallationConfig:
         config = InstallationConfig()
         assert config.devices == []
         assert config.simulator == SimulatorConfig()
+        assert config.group_addresses == {}
 
     def test_accepts_multiple_devices_with_distinct_addresses(self) -> None:
         config = InstallationConfig.model_validate(
@@ -108,3 +109,13 @@ class TestInstallationConfig:
                     ]
                 }
             )
+
+    def test_accepts_a_group_address_name_registry(self) -> None:
+        config = InstallationConfig.model_validate(
+            {"group_addresses": {"1/1/1": "Living Room Light A1"}}
+        )
+        assert config.group_addresses == {"1/1/1": "Living Room Light A1"}
+
+    def test_rejects_a_malformed_group_address_key(self) -> None:
+        with pytest.raises(ValidationError, match="Invalid group address"):
+            InstallationConfig.model_validate({"group_addresses": {"not-a-ga": "Whatever"}})

@@ -3,6 +3,7 @@ import type { Telegram } from '../types'
 
 export interface GroupAddressActivity {
   groupAddress: string
+  name: string | null
   lastValue: unknown
   lastSeen: number
   count: number
@@ -22,7 +23,7 @@ export function useGroupAddressActivity(lastTelegram: Telegram | null): GroupAdd
 
   useEffect(() => {
     if (lastTelegram === null || lastTelegram.service === 'read') return
-    const { destination, value, timestamp } = lastTelegram
+    const { destination, destination_name, value, timestamp } = lastTelegram
     const nowMs = timestamp * 1000
     const cutoff = nowMs - RATE_WINDOW_MS
 
@@ -36,6 +37,7 @@ export function useGroupAddressActivity(lastTelegram: Telegram | null): GroupAdd
       const previousCount = next.get(destination)?.count ?? 0
       next.set(destination, {
         groupAddress: destination,
+        name: destination_name,
         lastValue: value,
         lastSeen: timestamp,
         count: previousCount + 1,

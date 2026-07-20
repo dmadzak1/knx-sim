@@ -62,6 +62,7 @@ class TestListDevices:
         assert lamp["name"] == "hallway_lamp"
         assert lamp["room"] is None
         assert lamp["group_objects"]["control"]["group_address"] == "1/1/1"
+        assert lamp["group_objects"]["control"]["name"] is None
         assert lamp["group_objects"]["control"]["dpt_id"] == "1.001"
         assert lamp["group_objects"]["control"]["value"] is False
         assert lamp["group_objects"]["control"]["flags"]["write"] is True
@@ -74,6 +75,16 @@ class TestListDevices:
         devices = response.json()
         bedroom_devices = [d for d in devices if d["room"] == "Bedroom"]
         assert len(bedroom_devices) == 5
+
+    async def test_includes_group_address_name_when_named(
+        self, demo_house_client: tuple[Simulator, httpx.AsyncClient]
+    ) -> None:
+        _, client = demo_house_client
+        response = await client.get("/api/devices")
+        devices = response.json()
+        lamp = next(d for d in devices if d["individual_address"] == "1.1.2")
+        assert lamp["group_objects"]["control"]["name"] == "Living Room Light A1"
+        assert lamp["group_objects"]["status"]["name"] == "Living Room Light A1 Status"
 
 
 class TestListTelegrams:
@@ -103,6 +114,21 @@ class TestListTelegrams:
         assert first["service"] == "write"
         assert first["dpt_id"] == "1.001"
         assert first["value"] is True
+        assert first["destination_name"] is None  # minimal.yaml has no group_addresses registry
+
+    async def test_includes_destination_name_when_named(
+        self, demo_house_client: tuple[Simulator, httpx.AsyncClient]
+    ) -> None:
+        simulator, client = demo_house_client
+        await client.post(
+            "/api/inject",
+            json={"destination": "1/1/1", "dpt_id": "1.001", "value": True},
+        )
+        await simulator.bus.join()
+
+        telegrams = (await client.get("/api/telegrams")).json()
+        entry = next(t for t in telegrams if t["destination"] == "1/1/1")
+        assert entry["destination_name"] == "Living Room Light A1"
 
     async def test_filters_by_group_address(
         self, minimal_client: tuple[Simulator, httpx.AsyncClient]
@@ -142,6 +168,25 @@ class TestListTelegrams:
         _, client = minimal_client
         response = await client.get("/api/telegrams", params={"service": "teleport"})
         assert response.status_code == 422
+
+
+class TestListGroupAddresses:
+    async def test_empty_registry_returns_empty_list(
+        self, minimal_client: tuple[Simulator, httpx.AsyncClient]
+    ) -> None:
+        _, client = minimal_client
+        response = await client.get("/api/group_addresses")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_returns_the_full_registry(
+        self, demo_house_client: tuple[Simulator, httpx.AsyncClient]
+    ) -> None:
+        _, client = demo_house_client
+        response = await client.get("/api/group_addresses")
+        entries = response.json()
+        assert len(entries) == 26
+        assert {"address": "1/1/1", "name": "Living Room Light A1"} in entries
 
 
 class TestInjectTelegram:

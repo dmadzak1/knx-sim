@@ -24,6 +24,7 @@ class GroupObjectFlagsResponse(BaseModel):
 
 class GroupObjectState(BaseModel):
     group_address: str
+    name: str | None  # from the installation's group_addresses registry, if named
     dpt_id: str
     value: Any
     flags: GroupObjectFlagsResponse
@@ -41,6 +42,7 @@ class TelegramResponse(BaseModel):
     timestamp: float
     source: str
     destination: str
+    destination_name: str | None  # from the group_addresses registry, if named
     service: str
     dpt_id: str | None
     value: Any
@@ -56,3 +58,8 @@ class InjectRequest(BaseModel):
 
 class InjectResponse(BaseModel):
     status: str = "ok"
+
+
+class GroupAddressNameEntry(BaseModel):
+    address: str
+    name: str

@@ -24,6 +24,7 @@ export function GroupAddressActivityView({
         <table className="w-full border-collapse text-xs">
           <thead className="text-left text-neutral-500 dark:text-neutral-400">
             <tr>
+              <th className="px-2 py-1">Name</th>
               <th className="px-2 py-1">Group address</th>
               <th className="px-2 py-1">Last value</th>
               <th className="px-2 py-1">Last seen</th>
@@ -37,7 +38,8 @@ export function GroupAddressActivityView({
                 key={entry.groupAddress}
                 className="border-t border-neutral-100 dark:border-neutral-800"
               >
-                <td className="px-2 py-1 font-semibold">{entry.groupAddress}</td>
+                <td className="px-2 py-1 font-semibold">{entry.name ?? '—'}</td>
+                <td className="px-2 py-1">{entry.groupAddress}</td>
                 <td className="px-2 py-1">{formatValue(entry.lastValue)}</td>
                 <td className="px-2 py-1 text-neutral-500 dark:text-neutral-400">
                   {formatTime(entry.lastSeen)}
@@ -48,7 +50,7 @@ export function GroupAddressActivityView({
             ))}
             {activity.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-2 py-6 text-center text-neutral-400">
+                <td colSpan={6} className="px-2 py-6 text-center text-neutral-400">
                   No activity yet.
                 </td>
               </tr>

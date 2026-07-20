@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useGroupAddressNames } from '../hooks/useGroupAddressNames'
 import { useInject } from '../hooks/useInject'
 import type { Telegram } from '../types'
 
@@ -12,6 +13,7 @@ export function InjectorForm() {
   const [rawValue, setRawValue] = useState('true')
   const [parseError, setParseError] = useState<string | null>(null)
   const { inject, pending, error } = useInject()
+  const groupAddressNames = useGroupAddressNames()
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault()
@@ -42,12 +44,18 @@ export function InjectorForm() {
           <span className="text-neutral-600 dark:text-neutral-300">Group address</span>
           <input
             type="text"
+            list="known-group-addresses"
             required
             value={destination}
             onChange={(event) => setDestination(event.target.value)}
             placeholder="1/1/1"
             className="w-28 rounded border border-neutral-300 bg-white px-2 py-1 dark:border-neutral-700 dark:bg-neutral-800"
           />
+          <datalist id="known-group-addresses">
+            {groupAddressNames.map((entry) => (
+              <option key={entry.address} value={entry.address} label={entry.name} />
+            ))}
+          </datalist>
         </label>
 
         <label className="flex flex-col gap-1">

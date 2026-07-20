@@ -22,7 +22,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from knx_sim.cemi.address import IndividualAddress
+from knx_sim.cemi.address import GroupAddress, IndividualAddress
 
 DEFAULT_SIMULATOR_NAME = "knx-sim"
 DEFAULT_PORT = 3671
@@ -106,10 +106,25 @@ class DeviceConfig(BaseModel):
 
 
 class InstallationConfig(BaseModel):
-    """A whole virtual installation: simulator settings plus its devices."""
+    """A whole virtual installation: simulator settings, its devices, and
+    an optional group address name registry."""
 
     simulator: SimulatorConfig = Field(default_factory=SimulatorConfig)
     devices: list[DeviceConfig] = Field(default_factory=list)
+    # A GA can be shared by multiple devices (e.g. a wall switch and the
+    # actuator it controls both use the same control GA), so naming lives
+    # here rather than per-device -- one project-wide registry, matching
+    # how ETS's own group address table names a GA independently of which
+    # device happens to reference it. Optional per GA: an unnamed GA just
+    # displays its raw address.
+    group_addresses: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("group_addresses")
+    @classmethod
+    def _validate_group_address_keys(cls, value: dict[str, str]) -> dict[str, str]:
+        for ga in value:
+            GroupAddress.from_string(ga)  # raises ValueError on malformed input
+        return value
 
     @model_validator(mode="after")
     def _validate_unique_individual_addresses(self) -> InstallationConfig:

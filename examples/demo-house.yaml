@@ -89,3 +89,35 @@ devices:
     room: Bedroom
     presence_ga: "1/2/40"
     hold_time: 60.0
+
+# Project-wide group address names, independent of which device(s)
+# reference a GA (ETS-style: naming lives with the group address table,
+# not with any one device) -- optional per GA, an unnamed one just
+# displays its raw address in the dashboard.
+group_addresses:
+  "1/1/1": Living Room Light A1
+  "1/1/2": Living Room Light A1 Status
+  "1/1/10": Living Room Light A2 Switch
+  "1/1/11": Living Room Light A2 Dim
+  "1/1/12": Living Room Light A2 Brightness
+  "1/1/13": Living Room Light A2 Switch Status
+  "1/1/14": Living Room Light A2 Brightness Status
+  "1/1/20": Living Room Blind B1 Move
+  "1/1/21": Living Room Blind B1 Stop
+  "1/1/22": Living Room Blind B1 Position
+  "1/1/23": Living Room Blind B1 Position Status
+  "1/1/24": Living Room Blind B1 Moving Status
+  "1/1/30": Living Room Thermostat Temperature
+  "1/1/31": Living Room Thermostat Setpoint
+  "1/1/32": Living Room Thermostat Heating Demand
+  "1/2/1": Bedroom Light A1
+  "1/2/2": Bedroom Light A1 Status
+  "1/2/20": Bedroom Blind B1 Move
+  "1/2/21": Bedroom Blind B1 Stop
+  "1/2/22": Bedroom Blind B1 Position
+  "1/2/23": Bedroom Blind B1 Position Status
+  "1/2/24": Bedroom Blind B1 Moving Status
+  "1/2/30": Bedroom Thermostat Temperature
+  "1/2/31": Bedroom Thermostat Setpoint
+  "1/2/32": Bedroom Thermostat Heating Demand
+  "1/2/40": Bedroom Presence

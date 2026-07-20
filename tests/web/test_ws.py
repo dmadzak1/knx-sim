@@ -37,16 +37,14 @@ from knx_sim.web.app import create_app
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 WS_PORT = 18901
 WS_URL = f"ws://127.0.0.1:{WS_PORT}/ws"
+DEMO_HOUSE_WS_PORT = 18902
+DEMO_HOUSE_WS_URL = f"ws://127.0.0.1:{DEMO_HOUSE_WS_PORT}/ws"
 
 
-@pytest.fixture
-async def running_dashboard() -> AsyncIterator[Simulator]:
-    config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
-    simulator = build_simulator(config)
+async def _serve(simulator: Simulator, port: int) -> AsyncIterator[Simulator]:
     simulator.bus.start()
-
     app = create_app(simulator)
-    server_config = uvicorn.Config(app, host="127.0.0.1", port=WS_PORT, log_level="warning")
+    server_config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
     server = uvicorn.Server(server_config)
     server_task = asyncio.create_task(server.serve())
     await asyncio.sleep(0.3)  # let the server bind & start accepting
@@ -56,6 +54,22 @@ async def running_dashboard() -> AsyncIterator[Simulator]:
         server.should_exit = True
         await server_task
         await simulator.bus.stop()
+
+
+@pytest.fixture
+async def running_dashboard() -> AsyncIterator[Simulator]:
+    config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
+    simulator = build_simulator(config)
+    async for s in _serve(simulator, WS_PORT):
+        yield s
+
+
+@pytest.fixture
+async def running_demo_house_dashboard() -> AsyncIterator[Simulator]:
+    config = load_installation_file(EXAMPLES_DIR / "demo-house.yaml")
+    simulator = build_simulator(config)
+    async for s in _serve(simulator, DEMO_HOUSE_WS_PORT):
+        yield s
 
 
 async def test_streams_a_telegram_after_injection(running_dashboard: Simulator) -> None:
@@ -126,3 +140,22 @@ async def test_disconnecting_client_unsubscribes_from_the_bus(
 
     await asyncio.sleep(0.2)  # let the server notice the disconnect and clean up
     assert len(running_dashboard.bus._monitors) == 0
+
+
+async def test_streamed_telegram_includes_the_group_address_name(
+    running_demo_house_dashboard: Simulator,
+) -> None:
+    async with websockets.connect(DEMO_HOUSE_WS_URL) as client:
+        await asyncio.sleep(0.2)
+        await running_demo_house_dashboard.bus.inject(
+            Telegram(
+                source=IndividualAddress(1, 1, 9),
+                destination=GroupAddress(1, 1, 1),
+                service=Service.GROUP_WRITE,
+                payload=1,
+            )
+        )
+        raw = await asyncio.wait_for(client.recv(), timeout=2.0)
+        message = json.loads(raw)
+
+    assert message["data"]["destination_name"] == "Living Room Light A1"

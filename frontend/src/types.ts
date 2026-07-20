@@ -6,6 +6,7 @@ export interface Telegram {
   timestamp: number
   source: string
   destination: string
+  destination_name: string | null
   service: 'read' | 'write' | 'response'
   dpt_id: string | null
   value: unknown
@@ -27,6 +28,7 @@ export interface GroupObjectFlags {
 
 export interface GroupObjectState {
   group_address: string
+  name: string | null
   dpt_id: string
   value: unknown
   flags: GroupObjectFlags
@@ -47,4 +49,10 @@ export interface InjectRequest {
   dpt_id?: string | null
   value?: unknown
   source?: string | null
+}
+
+// Mirrors knx_sim/web/schemas.py's GroupAddressNameEntry.
+export interface GroupAddressNameEntry {
+  address: string
+  name: string
 }

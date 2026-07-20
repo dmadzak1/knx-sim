@@ -42,11 +42,14 @@ export function TelegramMonitor({
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
-    const needle = gaFilter.trim()
+    const needle = gaFilter.trim().toLowerCase()
     return telegrams.filter((telegram) => {
       if (serviceFilter !== 'all' && telegram.service !== serviceFilter) return false
-      if (needle && !telegram.destination.includes(needle)) return false
-      return true
+      if (!needle) return true
+      return (
+        telegram.destination.toLowerCase().includes(needle) ||
+        (telegram.destination_name?.toLowerCase().includes(needle) ?? false)
+      )
     })
   }, [telegrams, gaFilter, serviceFilter])
 
@@ -79,7 +82,7 @@ export function TelegramMonitor({
             type="text"
             value={gaFilter}
             onChange={(event) => setGaFilter(event.target.value)}
-            placeholder="Filter by GA (e.g. 1/1)"
+            placeholder="Filter by GA or name"
             className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
           />
           <select
@@ -139,8 +142,15 @@ export function TelegramMonitor({
                   {formatTime(telegram.timestamp)}
                 </td>
                 <td className="px-2 py-1 whitespace-nowrap">{telegram.source}</td>
-                <td className="px-2 py-1 whitespace-nowrap font-semibold">
-                  {telegram.destination}
+                <td className="px-2 py-1 whitespace-nowrap">
+                  {telegram.destination_name ? (
+                    <span title={telegram.destination}>
+                      <span className="font-semibold">{telegram.destination_name}</span>
+                      <span className="ml-1 text-neutral-400">({telegram.destination})</span>
+                    </span>
+                  ) : (
+                    <span className="font-semibold">{telegram.destination}</span>
+                  )}
                 </td>
                 <td className="px-2 py-1 whitespace-nowrap">
                   <span
