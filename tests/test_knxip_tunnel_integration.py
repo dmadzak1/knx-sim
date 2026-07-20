@@ -17,6 +17,7 @@ import socket
 from xknx import XKNX
 from xknx.dpt.payload import DPTBinary
 from xknx.io import ConnectionConfig, ConnectionType
+from xknx.io.gateway_scanner import GatewayScanner
 from xknx.telegram import GroupAddress as XGroupAddress
 from xknx.telegram import Telegram as XTelegram
 from xknx.telegram.apci import GroupValueWrite
@@ -171,5 +172,53 @@ async def test_heartbeat_cleanup_after_client_goes_silent() -> None:
         assert server.active_tunnel_count == 0
     finally:
         sock.close()
+        await server.stop()
+        await bus.stop()
+
+
+async def test_tunneling_disabled_rejects_connect_request() -> None:
+    # F-CLI-1's `--no-tunneling`: reject every CONNECT_REQUEST with
+    # E_CONNECTION_TYPE instead of ever creating a channel.
+    bus = Bus(delay_seconds=0.0)
+    bus.start()
+    server = KnxIpServer(bus, enable_tunneling=False)
+    await server.start()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setblocking(False)
+    sock.bind(("127.0.0.1", 0))
+    loop = asyncio.get_running_loop()
+    try:
+        local_hpai = HPAI(*sock.getsockname())
+        connect_request = ConnectRequest(
+            control_endpoint=local_hpai,
+            data_endpoint=local_hpai,
+            cri=ConnectRequestInformation(),
+        )
+        sock.sendto(connect_request.to_knx(), ("127.0.0.1", DEFAULT_PORT))
+
+        data = await asyncio.wait_for(loop.sock_recv(sock, 1024), timeout=2.0)
+        response = parse_frame(data)
+        assert isinstance(response, ConnectResponse)
+        assert response.status_code is TunnelingErrorCode.E_CONNECTION_TYPE
+        assert server.active_tunnel_count == 0
+    finally:
+        sock.close()
+        await server.stop()
+        await bus.stop()
+
+
+async def test_discovery_reflects_tunneling_disabled() -> None:
+    bus = Bus(delay_seconds=0.0)
+    bus.start()
+    server = KnxIpServer(bus, friendly_name="knx-sim-no-tunneling", enable_tunneling=False)
+    await server.start()
+    try:
+        scanner = GatewayScanner(XKNX(), timeout_in_seconds=2.0, stop_on_found=1)
+        gateways = await scanner.scan()
+
+        assert len(gateways) == 1
+        assert gateways[0].supports_tunnelling is False
+    finally:
         await server.stop()
         await bus.stop()

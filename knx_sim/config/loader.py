@@ -61,8 +61,19 @@ class Simulator:
     group_address_names: dict[GroupAddress, str]
 
 
-def build_simulator(config: InstallationConfig) -> Simulator:
-    """Build a Bus + KnxIpServer + Devices from a validated InstallationConfig."""
+def build_simulator(
+    config: InstallationConfig,
+    *,
+    enable_routing: bool = True,
+    enable_tunneling: bool = True,
+) -> Simulator:
+    """Build a Bus + KnxIpServer + Devices from a validated InstallationConfig.
+
+    enable_routing/enable_tunneling aren't InstallationConfig fields --
+    they're a CLI-only concern (F-CLI-1's "disabling routing/tunneling
+    individually"), passed straight through to KnxIpServer, not something
+    a YAML file itself configures.
+    """
     bus = Bus(delay_seconds=config.simulator.delay_seconds)
     devices = [build_device(device_config) for device_config in config.devices]
     for device in devices:
@@ -74,6 +85,8 @@ def build_simulator(config: InstallationConfig) -> Simulator:
         individual_address=IndividualAddress.from_string(config.simulator.individual_address),
         friendly_name=config.simulator.name,
         max_tunnels=config.simulator.max_tunnels,
+        enable_routing=enable_routing,
+        enable_tunneling=enable_tunneling,
     )
     device_configs = {
         device.individual_address: device_config

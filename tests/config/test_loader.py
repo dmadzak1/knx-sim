@@ -98,6 +98,24 @@ class TestBuildSimulator:
         finally:
             await simulator.bus.stop()
 
+    async def test_routing_and_tunneling_default_to_enabled(self) -> None:
+        config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
+        simulator = build_simulator(config)
+        try:
+            assert simulator.server._enable_routing is True
+            assert simulator.server._enable_tunneling is True
+        finally:
+            await simulator.bus.stop()
+
+    async def test_routing_and_tunneling_can_be_disabled(self) -> None:
+        config = load_installation_file(EXAMPLES_DIR / "minimal.yaml")
+        simulator = build_simulator(config, enable_routing=False, enable_tunneling=False)
+        try:
+            assert simulator.server._enable_routing is False
+            assert simulator.server._enable_tunneling is False
+        finally:
+            await simulator.bus.stop()
+
     async def test_group_address_names_parsed_from_registry(self) -> None:
         config = load_installation_file(EXAMPLES_DIR / "demo-house.yaml")
         simulator = build_simulator(config)

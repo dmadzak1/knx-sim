@@ -125,6 +125,8 @@ class KnxIpServer(asyncio.DatagramProtocol):
         heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
         heartbeat_check_interval: float = DEFAULT_HEARTBEAT_CHECK_INTERVAL,
         ack_timeout: float = DEFAULT_ACK_TIMEOUT,
+        enable_routing: bool = True,
+        enable_tunneling: bool = True,
     ) -> None:
         """bind_address: the local interface to join the multicast group on
         and advertise as our control endpoint. None (default) auto-detects
@@ -137,6 +139,16 @@ class KnxIpServer(asyncio.DatagramProtocol):
         the real spec values (120s / 10s / 1s) but are constructor
         parameters specifically so tests can use tiny values instead of
         actually waiting on real wall-clock time.
+
+        enable_routing/enable_tunneling (F-CLI-1: disabling them
+        individually) never affect discovery (F-IP-1) -- a client should
+        still be able to find and query the server even with every
+        functional service turned off, and discovery's own multicast
+        socket membership is what routing would need anyway. Disabling
+        routing stops both outbound relay and inbound ROUTING_INDICATION
+        processing; disabling tunneling rejects every CONNECT_REQUEST
+        with E_CONNECTION_TYPE instead of ever creating a channel. Both
+        are also reflected in the advertised SupportedServiceFamiliesDIB.
         """
         self._bus = bus
         self._bind_address = bind_address
@@ -145,6 +157,8 @@ class KnxIpServer(asyncio.DatagramProtocol):
         self._individual_address = individual_address
         self._friendly_name = friendly_name
         self._transport: asyncio.DatagramTransport | None = None
+        self._enable_routing = enable_routing
+        self._enable_tunneling = enable_tunneling
 
         self._tunnels = TunnelRegistry(max_channels=max_tunnels)
         self._heartbeat_timeout = heartbeat_timeout
@@ -296,6 +310,8 @@ class KnxIpServer(asyncio.DatagramProtocol):
         # with it (we never send the requests they'd be answering).
 
     async def _handle_routing_indication(self, frame: RoutingIndication) -> None:
+        if not self._enable_routing:
+            return
         try:
             _, telegram = parse_cemi(frame.raw_cemi)
         except CemiParseError as exc:
@@ -317,6 +333,15 @@ class KnxIpServer(asyncio.DatagramProtocol):
     # --- tunneling: CONNECT / CONNECTIONSTATE / DISCONNECT ---
 
     def _handle_connect_request(self, frame: ConnectRequest, addr: tuple[str, int]) -> None:
+        if not self._enable_tunneling:
+            self._send(
+                ConnectResponse(
+                    communication_channel_id=0, status_code=ErrorCode.E_CONNECTION_TYPE
+                ).to_knx(),
+                addr,
+            )
+            return
+
         # frame.cri already guarantees TUNNEL_CONNECTION + DATA_LINK_LAYER --
         # ConnectRequestInformation.from_knx() rejects anything else as a
         # ParseError before this handler ever runs, since our CRI enums only
@@ -444,6 +469,8 @@ class KnxIpServer(asyncio.DatagramProtocol):
         await self._relay_via_tunnels(telegram)
 
     async def _relay_via_routing(self, telegram: Telegram) -> None:
+        if not self._enable_routing:
+            return
         if not self._bus.has_device(telegram.source):
             return  # arrived from the network; don't re-relay (F-IP-2)
         cemi = build_cemi(telegram, MessageCode.L_DATA_IND)
@@ -451,6 +478,8 @@ class KnxIpServer(asyncio.DatagramProtocol):
         self._send(routing_indication.to_knx(), (self._multicast_group, self._port))
 
     async def _relay_via_tunnels(self, telegram: Telegram) -> None:
+        if not self._enable_tunneling:
+            return  # no channel can exist anyway (CONNECT_REQUEST always rejected)
         cemi = build_cemi(telegram, MessageCode.L_DATA_IND)
         for channel in self._tunnels.all_channels():
             if channel.state is not ChannelState.CONNECTED:
@@ -530,13 +559,12 @@ class KnxIpServer(asyncio.DatagramProtocol):
         # SEARCH_RESPONSE from anything claiming Core v2, expecting
         # SEARCH_RESPONSE_EXTENDED instead (KNX IP Secure territory we
         # don't implement).
-        return SupportedServiceFamiliesDIB(
-            families=(
-                SupportedServiceFamily(ServiceFamily.CORE, 1),
-                SupportedServiceFamily(ServiceFamily.ROUTING, 1),
-                SupportedServiceFamily(ServiceFamily.TUNNELING, 1),
-            )
-        )
+        families = [SupportedServiceFamily(ServiceFamily.CORE, 1)]
+        if self._enable_routing:
+            families.append(SupportedServiceFamily(ServiceFamily.ROUTING, 1))
+        if self._enable_tunneling:
+            families.append(SupportedServiceFamily(ServiceFamily.TUNNELING, 1))
+        return SupportedServiceFamiliesDIB(families=tuple(families))
 
 
 def _resolve_reply_addr(endpoint: HPAI, source_addr: tuple[str, int]) -> tuple[str, int]:

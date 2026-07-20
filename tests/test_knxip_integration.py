@@ -93,3 +93,52 @@ async def test_xknx_routing_client_controls_lamp_and_receives_status() -> None:
         await xknx.stop()
         await server.stop()
         await bus.stop()
+
+
+async def test_discovery_reflects_routing_disabled() -> None:
+    # F-CLI-1: `--no-routing` should be visible to a real client via
+    # discovery, not just enforced silently.
+    bus = Bus(delay_seconds=0.0)
+    bus.start()
+    server = KnxIpServer(bus, friendly_name="knx-sim-no-routing", enable_routing=False)
+    await server.start()
+    try:
+        scanner = GatewayScanner(XKNX(), timeout_in_seconds=2.0, stop_on_found=1)
+        gateways = await scanner.scan()
+
+        assert len(gateways) == 1
+        assert gateways[0].supports_routing is False
+    finally:
+        await server.stop()
+        await bus.stop()
+
+
+async def test_routing_disabled_ignores_multicast_writes() -> None:
+    bus = Bus(delay_seconds=0.0)
+    bus.start()
+    lamp = SwitchActuator(IndividualAddress(1, 1, 2), CONTROL_GA, STATUS_GA)
+    bus.register(lamp)
+    server = KnxIpServer(bus, enable_routing=False)
+    await server.start()
+
+    xknx = XKNX(
+        connection_config=ConnectionConfig(
+            connection_type=ConnectionType.ROUTING,
+            individual_address="15.15.250",
+        ),
+    )
+    try:
+        await xknx.start()
+
+        xknx.telegrams.put_nowait(
+            XTelegram(destination_address=X_CONTROL_GA, payload=GroupValueWrite(DPTBinary(1)))
+        )
+        await xknx.join()
+        await asyncio.sleep(0.5)  # give a (disabled) relay every chance to arrive
+
+        assert lamp.group_objects["control"].value is False
+        assert lamp.group_objects["status"].value is False
+    finally:
+        await xknx.stop()
+        await server.stop()
+        await bus.stop()
