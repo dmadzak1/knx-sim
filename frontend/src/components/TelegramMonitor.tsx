@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTelegramStream } from '../hooks/useTelegramStream'
+import { useTelegramHistory } from '../hooks/useTelegramHistory'
 import type { Telegram } from '../types'
 
 type ServiceFilter = 'all' | Telegram['service']
@@ -27,12 +27,18 @@ const SERVICE_STYLES: Record<Telegram['service'], string> = {
   response: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
 }
 
-export function TelegramMonitor() {
+export function TelegramMonitor({
+  lastTelegram,
+  connected,
+}: {
+  lastTelegram: Telegram | null
+  connected: boolean
+}) {
   const [paused, setPaused] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
   const [gaFilter, setGaFilter] = useState('')
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>('all')
-  const { telegrams, connected } = useTelegramStream(paused)
+  const telegrams = useTelegramHistory(lastTelegram, paused)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {

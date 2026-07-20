@@ -15,3 +15,36 @@ export interface WsTelegramMessage {
   type: 'telegram'
   data: Telegram
 }
+
+// Mirrors knx_sim/web/schemas.py's GroupObjectFlagsResponse/GroupObjectState/DeviceState.
+export interface GroupObjectFlags {
+  communication: boolean
+  read: boolean
+  write: boolean
+  transmit: boolean
+  update: boolean
+}
+
+export interface GroupObjectState {
+  group_address: string
+  dpt_id: string
+  value: unknown
+  flags: GroupObjectFlags
+}
+
+export interface DeviceState {
+  individual_address: string
+  name: string | null
+  room: string | null
+  type: string
+  group_objects: Record<string, GroupObjectState>
+}
+
+// Mirrors knx_sim/web/schemas.py's InjectRequest.
+export interface InjectRequest {
+  destination: string
+  service?: 'read' | 'write' | 'response'
+  dpt_id?: string | null
+  value?: unknown
+  source?: string | null
+}

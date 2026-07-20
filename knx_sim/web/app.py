@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 from knx_sim.bus.router import TelegramLogEntry
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
@@ -31,11 +34,22 @@ from knx_sim.web.schemas import (
     TelegramResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 # Bounded so a slow/stuck WebSocket client can never grow memory without
 # limit; on_telegram() below drops rather than blocks when full, since
 # Bus._process() awaits every monitor callback sequentially before
 # delivering to devices -- a stuck send must never stall bus processing.
 WS_QUEUE_MAXSIZE = 1000
+
+# frontend/dist relative to this file (knx_sim/web/app.py -> knx_sim/ ->
+# repo root -> frontend/dist), not relative to the current working
+# directory, so this resolves correctly regardless of where the CLI is
+# invoked from. Only present after `npm run build`; create_app() mounts
+# it if found and just serves the API otherwise (e.g. during frontend
+# development against `npm run dev`'s own dev server, or in tests that
+# never build the frontend).
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 # The individual address attributed to telegrams injected via the web UI
 # (F-WEB-4) when the request doesn't specify its own source -- distinct
@@ -241,5 +255,17 @@ def create_app(simulator: Simulator) -> FastAPI:
                     raise exc
         finally:
             bus.unsubscribe(on_telegram)
+
+    # Mounted last: a mount at "/" only ever serves what none of the
+    # routes registered above already matched (Starlette checks routes in
+    # registration order), so this can't shadow /api/* or /ws.
+    if FRONTEND_DIST.is_dir():
+        app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+    else:
+        logger.info(
+            "%s not found -- serving the API only (run `npm run build` in frontend/ "
+            "to serve the dashboard UI from here too)",
+            FRONTEND_DIST,
+        )
 
     return app
