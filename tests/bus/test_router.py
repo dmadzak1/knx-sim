@@ -174,7 +174,17 @@ class TestWriteRouting:
 
         assert own_go.value is False  # never delivered to its own sender
 
-    async def test_handle_group_write_called_only_on_change(self, bus: Bus) -> None:
+    async def test_handle_group_write_called_even_for_a_same_value_write(self, bus: Bus) -> None:
+        # Matches real KNX bus behavior: the bus delivers every telegram
+        # that passes the flag gate, regardless of whether the decoded
+        # value actually differs from the group object's previous one --
+        # it's up to the device whether a same-value write is meaningful
+        # (see e.g. SwitchActuator.handle_group_write, which itself
+        # checks GroupObject.set()'s return value before deciding to
+        # transmit a status update). Some devices deliberately react to
+        # *every* delivered write regardless of value (e.g. BlindActuator
+        # treating any "stop" write as "halt"), which silently breaking
+        # on a same-value write would make unusable.
         calls: list[GroupObject] = []
 
         class Recorder(Device):
@@ -192,22 +202,23 @@ class TestWriteRouting:
                 source=sender.individual_address,
                 destination=GA,
                 service=Service.GROUP_WRITE,
-                payload=1,  # same value (True) -- no change
+                payload=1,  # same value (True) -- still delivered
             )
         )
         await bus.join()
-        assert calls == []
+        assert calls == [receiver_go]
 
         await bus.inject(
             Telegram(
                 source=sender.individual_address,
                 destination=GA,
                 service=Service.GROUP_WRITE,
-                payload=0,  # now it changes
+                payload=0,  # a genuine change -- also delivered
             )
         )
         await bus.join()
-        assert calls == [receiver_go]
+        assert calls == [receiver_go, receiver_go]
+        assert receiver_go.value is False  # the payload was applied both times
 
 
 class TestResponseRouting:

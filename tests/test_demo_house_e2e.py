@@ -114,10 +114,9 @@ async def test_demo_house_boots_and_xknx_operates_every_device_type() -> None:
         await wait_for("1/1/24")
         assert blind.group_objects["moving_status"].value is True
 
-        # "stop" starts at value=False; the bus only calls
-        # handle_group_write on an actual value change (GroupObject.set()'s
-        # change detection), so the write must flip it to True to fire --
-        # BlindActuator treats any stop write as "halt", regardless of bit.
+        # BlindActuator treats any stop write as "halt", regardless of bit
+        # value -- the bus delivers every write to a write-flagged group
+        # object, not just ones that change its cached value.
         events[XGroupAddress("1/1/24")].clear()
         xknx.telegrams.put_nowait(
             XTelegram(

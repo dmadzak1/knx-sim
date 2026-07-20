@@ -165,13 +165,30 @@ class Bus:
     async def _deliver(
         self, telegram: Telegram, device: Device, group_object: GroupObject
     ) -> None:
+        # Every telegram that passes the flag gate gets delivered to the
+        # device, regardless of whether the payload's decoded value
+        # actually differs from the group object's previous one --
+        # matching real KNX bus behavior (the bus doesn't suppress
+        # same-value writes; that's an application-layer choice). A
+        # device that only cares about genuine changes already gates its
+        # own reactions/transmits via GroupObject.set()'s return value
+        # (see e.g. SwitchActuator.handle_group_write), so this doesn't
+        # cause spurious transmits -- it just stops the bus from silently
+        # dropping a same-value write before the device ever sees it,
+        # which broke any control meant to be re-triggerable (blind
+        # move/stop, or any control GA whose cached value can drift out
+        # of sync with what a status object shows, e.g. DimmerActuator's
+        # "switch" object never being touched by a direct "brightness"
+        # write).
         if telegram.service is Service.GROUP_WRITE:
             assert telegram.payload is not None  # guaranteed by Telegram.__post_init__
-            if group_object.flags.write and group_object.apply_payload(telegram.payload):
+            if group_object.flags.write:
+                group_object.apply_payload(telegram.payload)
                 await device.handle_group_write(group_object)
         elif telegram.service is Service.GROUP_RESPONSE:
             assert telegram.payload is not None
-            if group_object.flags.update and group_object.apply_payload(telegram.payload):
+            if group_object.flags.update:
+                group_object.apply_payload(telegram.payload)
                 await device.handle_group_write(group_object)
         elif telegram.service is Service.GROUP_READ:
             if group_object.flags.read:
