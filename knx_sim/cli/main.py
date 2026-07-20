@@ -8,8 +8,10 @@ same startup path a real invocation uses (load config -> build_simulator
 -> start bus+KnxIpServer -> construct the web app's uvicorn.Server) without
 needing run()'s infinite serve()-until-interrupted loop.
 
-`knx-sim monitor` (F-CLI-2) and scenario scripts (F-CLI-3) are separate,
-later rounds of M8 -- this module is round A's F-CLI-1 scope only.
+`knx-sim monitor` (F-CLI-2, see knx_sim/cli/monitor.py) is a separate,
+independent WebSocket client subcommand -- it doesn't build/run a
+simulator at all, just connects to one that's already running. Scenario
+scripts (F-CLI-3) are a later M8 round.
 """
 
 from __future__ import annotations
@@ -22,7 +24,9 @@ from pathlib import Path
 
 import uvicorn
 
+from knx_sim.cli.monitor import monitor
 from knx_sim.config.loader import Simulator, build_simulator, load_installation_file
+from knx_sim.config.models import DEFAULT_WEB_PORT
 from knx_sim.web.app import create_app
 
 # The web dashboard always binds to 127.0.0.1 (F-WEB-5): it has no
@@ -169,6 +173,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--no-tunneling", action="store_true", help="Disable KNXnet/IP tunneling."
     )
 
+    monitor_parser = subparsers.add_parser(
+        "monitor", help="Console telegram monitor for a running knx-sim instance."
+    )
+    monitor_parser.add_argument(
+        "--host",
+        default=WEB_BIND_ADDRESS,
+        help=f"Host of the running instance's web dashboard (default: {WEB_BIND_ADDRESS}).",
+    )
+    monitor_parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_WEB_PORT,
+        help=f"Port of the running instance's web dashboard (default: {DEFAULT_WEB_PORT}).",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -192,4 +211,11 @@ def main(argv: list[str] | None = None) -> None:
             # capture_signals() re-raises after restoring the default handler
             # on its way out, a second Ctrl+C during shutdown, or the bare
             # asyncio.Event().wait() used when the web dashboard is disabled.
+            pass
+    elif args.command == "monitor":
+        try:
+            asyncio.run(monitor(args.host, args.port))
+        except KeyboardInterrupt:
+            # monitor() has no signal handling of its own (unlike
+            # uvicorn.Server.serve()) -- Ctrl+C just raises here normally.
             pass

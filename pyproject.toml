@@ -13,6 +13,10 @@ dependencies = [
     "pyyaml>=6.0",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
+    # Already transitively installed via uvicorn[standard]; made explicit
+    # because knx_sim.cli.monitor uses it directly as a WebSocket client
+    # (F-CLI-2), not just in tests.
+    "websockets",
 ]
 
 [project.scripts]
@@ -27,7 +31,6 @@ dev = [
     "mypy",
     "types-PyYAML",
     "httpx",
-    "websockets",
 ]
 
 [tool.setuptools.packages.find]
