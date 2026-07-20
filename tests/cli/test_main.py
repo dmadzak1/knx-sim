@@ -29,8 +29,9 @@ from xknx.telegram import Telegram as XTelegram
 from xknx.telegram.apci import GroupValueWrite
 
 from knx_sim.cemi.address import IndividualAddress
-from knx_sim.cli.main import RunningApp, _parse_args, build, shutdown
+from knx_sim.cli.main import RunningApp, _parse_args, _run_scenario_logged, build, shutdown
 from knx_sim.config.models import DEFAULT_WEB_PORT
+from knx_sim.devices.switch import WallSwitch
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 
@@ -63,6 +64,7 @@ class TestParseArgs:
         assert args.no_web is False
         assert args.no_routing is False
         assert args.no_tunneling is False
+        assert args.scenario is None
 
     def test_run_accepts_all_flags(self) -> None:
         args = _parse_args(
@@ -76,6 +78,8 @@ class TestParseArgs:
                 "--no-web",
                 "--no-routing",
                 "--no-tunneling",
+                "--scenario",
+                "demo-scenario.yaml",
             ]
         )
         assert args.log_level == "DEBUG"
@@ -83,6 +87,7 @@ class TestParseArgs:
         assert args.no_web is True
         assert args.no_routing is True
         assert args.no_tunneling is True
+        assert args.scenario == Path("demo-scenario.yaml")
 
     def test_run_rejects_an_unknown_log_level(self) -> None:
         with pytest.raises(SystemExit):
@@ -176,6 +181,37 @@ class TestBuild:
     async def test_shutdown_stops_bus_and_server_cleanly(self) -> None:
         running = await build(EXAMPLES_DIR / "minimal.yaml")
         await shutdown(running)  # must not raise or hang
+
+
+class TestScenarioIntegration:
+    # run()'s own --scenario wiring just launches _run_scenario_logged()
+    # as a background task -- exercised directly here rather than via
+    # run() itself, which blocks forever on serve()/Event().wait() and
+    # exposes no handle to the Simulator it builds internally. The
+    # underlying load_scenario_file()/run_scenario() machinery has its own
+    # thorough test coverage in tests/test_scenario.py; this is just
+    # confirming main.py's logging wrapper around it behaves.
+    async def test_executes_scenario_steps(self, tmp_path: Path) -> None:
+        running = await build(EXAMPLES_DIR / "minimal.yaml")
+        try:
+            scenario_file = tmp_path / "scenario.yaml"
+            scenario_file.write_text("- at: 0\n  device: hallway_switch\n  action: press\n")
+            await _run_scenario_logged(running.simulator, scenario_file)
+            wall_switch = next(
+                d for d in running.simulator.devices if isinstance(d, WallSwitch)
+            )
+            assert wall_switch.group_objects["control"].value is True
+        finally:
+            await shutdown(running)
+
+    async def test_a_bad_scenario_is_logged_not_raised(self, tmp_path: Path) -> None:
+        running = await build(EXAMPLES_DIR / "minimal.yaml")
+        try:
+            scenario_file = tmp_path / "bad.yaml"
+            scenario_file.write_text("- at: 0\n  device: nonexistent\n  action: press\n")
+            await _run_scenario_logged(running.simulator, scenario_file)  # must not raise
+        finally:
+            await shutdown(running)
 
 
 class TestEndToEnd:

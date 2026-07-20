@@ -1,0 +1,41 @@
+# A demo scenario for examples/demo-house.yaml (F-CLI-3): run alongside
+# `knx-sim run` to watch a short automated tour of the house play out on
+# the dashboard.
+#
+#   knx-sim run examples/demo-house.yaml --scenario examples/demo-scenario.yaml
+#
+# `at` is seconds elapsed since the scenario starts (not wall-clock time),
+# so this replays identically every run. `press`/`trigger` are stimulus
+# actions defined on the device itself (wall_switch/presence); `write`
+# injects a GroupValueWrite to one of the device's own group objects, for
+# actuator-type devices that don't have a stimulus method of their own.
+
+- at: 2.0
+  device: living_room_switch
+  action: press
+
+- at: 5.0
+  device: living_room_dimmer
+  action: write
+  group_object: brightness
+  value: 75.0
+
+- at: 8.0
+  device: living_room_blind
+  action: write
+  group_object: position
+  value: 50.0
+
+- at: 12.0
+  device: living_room_thermostat
+  action: write
+  group_object: setpoint
+  value: 22.0
+
+- at: 15.0
+  device: bedroom_presence
+  action: trigger
+
+- at: 18.0
+  device: bedroom_switch
+  action: press

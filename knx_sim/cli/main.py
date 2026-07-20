@@ -10,14 +10,20 @@ needing run()'s infinite serve()-until-interrupted loop.
 
 `knx-sim monitor` (F-CLI-2, see knx_sim/cli/monitor.py) is a separate,
 independent WebSocket client subcommand -- it doesn't build/run a
-simulator at all, just connects to one that's already running. Scenario
-scripts (F-CLI-3) are a later M8 round.
+simulator at all, just connects to one that's already running.
+
+`run --scenario <scenario.yaml>` (F-CLI-3, see knx_sim/scenario.py) runs
+a YAML scenario script as a background task alongside the server, so a
+demo plays itself while you watch the dashboard -- a scenario failure is
+logged, not fatal, since the server is the main point of the
+invocation and a scripted-demo bug shouldn't take it down.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +33,7 @@ import uvicorn
 from knx_sim.cli.monitor import monitor
 from knx_sim.config.loader import Simulator, build_simulator, load_installation_file
 from knx_sim.config.models import DEFAULT_WEB_PORT
+from knx_sim.scenario import load_scenario_file, run_scenario
 from knx_sim.web.app import create_app
 
 # The web dashboard always binds to 127.0.0.1 (F-WEB-5): it has no
@@ -106,6 +113,19 @@ async def shutdown(running: RunningApp) -> None:
     await running.simulator.bus.stop()
 
 
+async def _run_scenario_logged(simulator: Simulator, scenario_path: str | Path) -> None:
+    """Run a scenario as a background task: log its outcome either way,
+    but never let a scenario bug (bad YAML, unknown device/action/DPT)
+    propagate and take down the server it's running alongside."""
+    try:
+        steps = load_scenario_file(scenario_path)
+        logger.info("Running scenario %s (%d steps)", scenario_path, len(steps))
+        await run_scenario(simulator, steps)
+        logger.info("Scenario %s finished", scenario_path)
+    except Exception:
+        logger.exception("Scenario %s failed", scenario_path)
+
+
 async def run(
     config_path: str | Path,
     *,
@@ -114,6 +134,7 @@ async def run(
     enable_web: bool = True,
     enable_routing: bool = True,
     enable_tunneling: bool = True,
+    scenario_path: str | Path | None = None,
 ) -> None:
     logging.basicConfig(
         level=getattr(logging, log_level), format="%(asctime)s %(levelname)s %(name)s: %(message)s"
@@ -125,6 +146,13 @@ async def run(
         enable_routing=enable_routing,
         enable_tunneling=enable_tunneling,
     )
+
+    scenario_task: asyncio.Task[None] | None = None
+    if scenario_path is not None:
+        scenario_task = asyncio.create_task(
+            _run_scenario_logged(running.simulator, scenario_path)
+        )
+
     try:
         if running.web_server is not None:
             # uvicorn.Server.serve() installs its own SIGINT/SIGTERM
@@ -138,6 +166,10 @@ async def run(
             # it the same way it catches capture_signals()'s re-raise).
             await asyncio.Event().wait()
     finally:
+        if scenario_task is not None:
+            scenario_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await scenario_task
         await shutdown(running)
 
 
@@ -172,6 +204,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     run_parser.add_argument(
         "--no-tunneling", action="store_true", help="Disable KNXnet/IP tunneling."
     )
+    run_parser.add_argument(
+        "--scenario",
+        type=Path,
+        default=None,
+        help="Run a YAML scenario script (see examples/) alongside the server.",
+    )
 
     monitor_parser = subparsers.add_parser(
         "monitor", help="Console telegram monitor for a running knx-sim instance."
@@ -203,6 +241,7 @@ def main(argv: list[str] | None = None) -> None:
                     enable_web=not args.no_web,
                     enable_routing=not args.no_routing,
                     enable_tunneling=not args.no_tunneling,
+                    scenario_path=args.scenario,
                 )
             )
         except KeyboardInterrupt:

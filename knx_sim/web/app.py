@@ -23,8 +23,8 @@ from knx_sim.bus.router import TelegramLogEntry
 from knx_sim.cemi.address import GroupAddress, IndividualAddress
 from knx_sim.cemi.frame import Service, Telegram
 from knx_sim.config.loader import Simulator
-from knx_sim.dpt import get_codec
 from knx_sim.dpt.dpt3 import DimmingControl
+from knx_sim.telegram_inject import encode_payload
 from knx_sim.web.schemas import (
     DeviceState,
     GroupAddressNameEntry,
@@ -75,16 +75,6 @@ def _serialize_value(value: Any) -> Any:
     """
     if isinstance(value, DimmingControl):
         return {"direction": value.direction, "step_code": value.step_code}
-    return value
-
-
-def _coerce_value_for_encode(dpt_id: str, value: Any) -> Any:
-    """The inverse of _serialize_value, for injected telegrams: turn a JSON
-    {"direction": ..., "step_code": ...} object back into a DimmingControl
-    for DPT 3.007. Every other DPT's JSON value already matches what its
-    codec expects."""
-    if dpt_id == "3.007" and isinstance(value, dict):
-        return DimmingControl(**value)
     return value
 
 
@@ -203,11 +193,9 @@ def create_app(simulator: Simulator) -> FastAPI:
             if request.dpt_id is None:
                 raise HTTPException(422, "dpt_id is required for write/response services")
             try:
-                codec = get_codec(request.dpt_id)
-                encoded = codec.encode(_coerce_value_for_encode(request.dpt_id, request.value))
+                payload = encode_payload(request.dpt_id, request.value)
             except (KeyError, TypeError, ValueError) as exc:
                 raise HTTPException(422, str(exc)) from None
-            payload = encoded[0] if codec.payload_length == 0 else encoded
 
         telegram = Telegram(
             source=source, destination=destination, service=service, payload=payload
